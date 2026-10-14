@@ -1,10 +1,10 @@
 <!doctype html>
 <html lang="zh-Hant"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#f6f6f3"><meta name="referrer" content="no-referrer"><meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#f6f6f3"><meta name="referrer" content="no-referrer"><meta name="robots" content="noindex,nofollow"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://private-voucher-vault.linyuxian517.chatgpt.site; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="我的票券">
-<link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/favicon.svg?v=4" type="image/svg+xml"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=4"><meta name="mobile-web-app-capable" content="yes"><meta name="format-detection" content="telephone=no"><link rel="stylesheet" href="/style.css?v=4">
-<title>我的票券 · 私密保管箱</title><script type="module" src="/app.js?v=4"></script></head>
+<link rel="manifest" href="./manifest.webmanifest"><link rel="icon" href="./favicon.svg?v=5" type="image/svg+xml"><link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png?v=5"><meta name="mobile-web-app-capable" content="yes"><meta name="format-detection" content="telephone=no"><link rel="stylesheet" href="./style.css?v=5">
+<title>我的票券 · 私密保管箱</title><script type="module" src="./app.js?v=5"></script></head>
 <body><div id="notice" class="notice" role="status" hidden></div>
 <section id="auth" class="auth-page">
  <div class="auth-panel">
@@ -12,19 +12,21 @@
   <div class="wallet-art" aria-hidden="true"><div class="art-ticket back"><span>MCDONALD’S</span><i></i><b>留一份好心情。</b></div><div class="art-ticket front"><span>YOUR PRIVATE WALLET</span><b>好吃的，<br>都在這裡。</b><div class="art-bottom">一張券，一頓小確幸 <span>↗</span></div></div></div>
   <div class="auth-heading"><span class="eyebrow">YOUR POCKET, YOUR TICKETS</span><h1>解鎖你的<br>美味收藏。</h1><p class="subtitle">輸入 6 位數字，打開專屬票券夾。</p></div>
   <div id="setupInfo" class="warning" hidden></div>
-  <form id="authForm">
+  <section id="activation" class="activation" hidden><h2>啟用這台手機</h2><p>第一次使用，請貼上家庭專屬連結。啟用後只需輸入 6 位 PIN，不用登入 ChatGPT。</p><form id="activationForm"><label for="familyLinkInput">家庭啟用連結</label><input id="familyLinkInput" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="貼上家人提供的連結" required><button id="activateSubmit" class="btn primary wide" type="submit">啟用此裝置 ↗</button></form></section>
+ <form id="authForm">
    <label for="password">6 位數字 PIN</label><input id="password" class="pin-input" type="password" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="current-password" placeholder="••••••" enterkeyhint="go" autocapitalize="off" spellcheck="false" aria-label="六位數字保管箱密碼" required>
    <div id="confirmWrap" hidden><label for="confirm">再輸入一次</label><input id="confirm" class="pin-input" type="password" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="new-password" placeholder="••••••" enterkeyhint="go" autocapitalize="off" spellcheck="false" aria-label="再次輸入六位數字密碼"></div>
-   <p id="authError" class="error" role="alert" hidden></p><button id="authSubmit" class="btn primary wide" type="submit">打開我的票券 <span>↗</span></button>
+<button id="authSubmit" class="btn primary wide" type="submit">打開我的票券 <span>↗</span></button>
   </form>
-  <div class="legal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 018 0v3"/><path d="M12 14v3"/></svg><span>僅你的 ChatGPT 帳號可開啟。PIN 請妥善保存。</span></div>
+  <p id="authError" class="error" role="alert" hidden></p>
+  <div class="legal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 018 0v3"/><path d="M12 14v3"/></svg><span>家庭連結＋6 位 PIN 保護。PIN 不會上傳。</span></div>
  <button type="button" id="installHelpAuth" class="install-link">加入 iPhone 主畫面 ↗</button><p id="standaloneHint" class="standalone-hint" hidden>已從主畫面開啟 · 我的票券</p>
  </div>
 </section>
 <div id="main" hidden>
 <header class="header"><div class="container header-inner"><div class="brand"><span class="brand-mark">TICKET</span><span>我的票券</span></div><div class="header-actions"><button type="button" id="refreshBtn" class="sync-button" aria-label="重新同步票券"><span class="sync-chip" id="syncState">同步中</span></button><button class="icon-btn" id="settingsBtn" aria-label="保管箱設定"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="white"/><circle cx="15" cy="17" r="3" fill="white"/></svg></button><button class="icon-btn" id="logoutBtn" aria-label="鎖定保管箱"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 018 0v3"/><path d="M12 14v3"/></svg></button></div></div></header>
 <main class="container">
- <section class="hero"><div class="hero-copy"><span class="eyebrow">YOUR PRIVATE TICKET WALLET</span><h2>今天想吃什麼？</h2><p>你的麥當勞票券，隨時準備好。</p><span class="hero-private"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 018 0v3"/><path d="M12 14v3"/></svg> 只有你看得到</span></div><div class="hero-art" aria-hidden="true"><div class="mini-ticket"><span>McDonald’s</span><b>好心情<br>兌換中。</b><i></i><span>KEEP IT IN YOUR POCKET</span></div><div class="art-circle">M</div></div></section>
+ <section class="hero"><div class="hero-copy"><span class="eyebrow">YOUR PRIVATE TICKET WALLET</span><h2>今天想吃什麼？</h2><p>你的麥當勞票券，隨時準備好。</p><span class="hero-private"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 018 0v3"/><path d="M12 14v3"/></svg> 家人專屬票券夾</span></div><div class="hero-art" aria-hidden="true"><div class="mini-ticket"><span>McDonald’s</span><b>好心情<br>兌換中。</b><i></i><span>KEEP IT IN YOUR POCKET</span></div><div class="art-circle">M</div></div></section>
  <section class="stat-row" aria-label="票券統計"><div class="stat available"><div>已確認未用</div><strong id="countUnused">0</strong><small>張票券</small></div><div class="stat"><div>已經使用</div><strong id="countUsed">0</strong><small>張票券</small></div><div class="stat"><div>已經過期</div><strong id="countExpired">0</strong><small>張票券</small></div></section>
  <section class="content-head"><div><h3>口袋裡的票券</h3><p id="listSubtitle">正在整理你的收藏…</p></div><div class="add-actions"><button type="button" class="btn outline" id="batchAdd"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="5" y="5" width="15" height="15" rx="3"/><path d="M5 15l4-4 5 6 3-3 3 4M2 15V5a3 3 0 013-3h10"/><circle cx="15" cy="10" r="1"/></svg><span>批次匯入</span></button><button type="button" class="btn primary" id="addBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>新增票券</span></button></div></section>
  <input type="file" id="batchFiles" multiple accept="image/jpeg,image/png,image/webp" hidden>

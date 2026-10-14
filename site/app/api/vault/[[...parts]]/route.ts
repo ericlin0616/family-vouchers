@@ -3,14 +3,11 @@ export const dynamic = 'force-dynamic';
 const headers = {'Cache-Control':'no-store, private','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'};
 const bucket = () => (env as unknown as {BUCKET:R2Bucket}).BUCKET;
 const result = (v:unknown, status=200) => Response.json(v,{status,headers});
-// Sites' owner-private access boundary protects all URLs, assets and APIs.
-// Do not change this project's audience to public.
-async function handle(req:Request) {
+// Public app shell; every data operation requires the private family capability.
+async function handleAuthorized(req:Request) {
  try {
   const p=new URL(req.url).pathname.replace(/^\/api\/vault\/?/,'').split('/').filter(Boolean);
   const method=req.method;
-  const origin=req.headers.get('origin');
-  if(!['GET','HEAD'].includes(method) && origin && origin!==new URL(req.url).origin) return result({error:'不允許跨站更新'},403);
   if(p[0]==='profile' && p.length===1){
    if(method==='GET'){
     const o=await bucket().get('profile');
@@ -87,7 +84,7 @@ async function handle(req:Request) {
     }
    }
   }
-  // User-supplied screenshot staging is protected by the same private boundary.
+  // Screenshot staging requires the same private family capability as encrypted records.
   // On first unlock the client encrypts this screenshot and removes the staging.
   if(p[0]==='inbox' && p.length===1){
    if(method==='GET'){
@@ -107,7 +104,30 @@ async function handle(req:Request) {
   return result({error:'找不到操作'},404);
  }catch {return result({error:'操作失敗，請檢查網路後重試'},500);}
 }
+async function handle(req:Request){
+ const origin=req.headers.get('origin');
+ const allowed=new Set([new URL(req.url).origin,'https://ericlin0616.github.io']);
+ const cors=new Headers(headers);cors.set('Vary','Origin');
+ if(origin&&!allowed.has(origin))return result({error:'不允許跨站存取'},403);
+ if(origin){cors.set('Access-Control-Allow-Origin',origin);cors.set('Access-Control-Allow-Methods','GET,POST,PUT,DELETE,OPTIONS');cors.set('Access-Control-Allow-Headers','Authorization,Content-Type,If-Match,If-None-Match');cors.set('Access-Control-Max-Age','600');}
+ const reply=(value:unknown,status:number)=>Response.json(value,{status,headers:cors});
+ if(req.method==='OPTIONS')return new Response(null,{status:204,headers:cors});
+ try{
+  const hash=(env as unknown as {FAMILY_ACCESS_KEY_HASH?:string}).FAMILY_ACCESS_KEY_HASH;
+  if(!hash||!/^([a-f0-9]{64})$/.test(hash))return reply({error:'家庭票券尚未啟用'},503);
+  const token=req.headers.get('authorization')?.match(/^Bearer ([A-Za-z0-9_-]{43})$/)?.[1];
+  if(!token)return reply({error:'此裝置尚未啟用，請使用家庭專屬連結'},401);
+  const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(token));
+  const got=Array.from(new Uint8Array(digest)).map(n=>n.toString(16).padStart(2,'0')).join('');
+  let difference=0;for(let i=0;i<64;i++)difference|=got.charCodeAt(i)^hash.charCodeAt(i);
+  if(difference!==0)return reply({error:'家庭連結無效，請重新啟用此裝置'},401);
+  const response=await handleAuthorized(req);
+  const h=new Headers(response.headers);cors.forEach((v,k)=>h.set(k,v));
+  return new Response(response.body,{status:response.status,headers:h});
+ }catch{return reply({error:'暫時無法連線，請稍後重試'},500);}
+}
 export const GET=handle;
 export const POST=handle;
 export const PUT=handle;
 export const DELETE=handle;
+export const OPTIONS=handle;

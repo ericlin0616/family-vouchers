@@ -6,6 +6,21 @@ function foodIcon(title='') {
  const nuggets='<path d="M5 17c0-6 8-7 11-3s2 10-4 11-7-3-7-8zM17 23c1-6 9-6 12-2s0 10-6 10-7-3-6-8zM19 8c3-5 12-2 12 3s-4 8-9 7-6-6-3-10z" fill="#edb64a" stroke="#c38e2d" stroke-width="1.3"/>';
  return '<svg viewBox="0 0 36 36" aria-hidden="true">'+(/雞塊/.test(title)?nuggets:/薯/.test(title)?fries:/茶|咖啡|飲料/.test(title)?cup:nuggets)+'</svg>';
 }
+const API_BASE='https://private-voucher-vault.linyuxian517.chatgpt.site/api/vault/';
+const FAMILY_STORAGE='family_vault_access_v1';
+let familyAccessKey='';
+function readFamilyLink(value){
+ const text=String(value||'').trim();
+ if(/^[A-Za-z0-9_-]{43}$/.test(text))return text;
+ try{const u=new URL(text);if(u.origin!=='https://ericlin0616.github.io'&&u.origin!=='https://private-voucher-vault.linyuxian517.chatgpt.site')return '';return new URLSearchParams(u.hash.slice(1)).get('family')||'';}catch{return '';}
+}
+function loadFamilyAccess(){
+ const offered=readFamilyLink(location.href);
+ try{familyAccessKey=offered||localStorage.getItem(FAMILY_STORAGE)||'';if(offered)localStorage.setItem(FAMILY_STORAGE,offered);}catch{familyAccessKey=offered;}
+ if(!/^[A-Za-z0-9_-]{43}$/.test(familyAccessKey))familyAccessKey='';
+ if(offered)history.replaceState(null,'',location.pathname+location.search);
+}
+function familyLink(){return new URL('.',location.href).href+'#family='+familyAccessKey;}
 const $ = id => document.getElementById(id);
 const enc = new TextEncoder();
 const dec = new TextDecoder();
@@ -19,14 +34,16 @@ function notify(msg,ms=3000) { const n=$('notice'); n.textContent=msg; n.hidden=
 function fail(msg) { notify(msg,4800); }
 function errtext(e) { return e?.name==='OperationError'?'保管箱 PIN不正確':e?.message||'操作失敗，請檢查網路後重試'; }
 async function api(path,method='GET',body=null,extra={}) {
- const r=await fetch('/api/vault/'+path,{method,cache:'no-store',headers:{'Content-Type':'application/json',...extra},body:body===null?null:typeof body==='string'?body:JSON.stringify(body)});
+ const r=await fetch(API_BASE+path,{method,cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer',headers:{'Content-Type':'application/json','Authorization':'Bearer '+familyAccessKey,...extra},body:body===null?null:typeof body==='string'?body:JSON.stringify(body)});
  if(r.status===304)return null;
  let v;try{v=await r.json();}catch{throw Error('登入狀態失效，請重新開啟網站');}
+ if(r.status===401){$('activation').hidden=false;$('authForm').hidden=true;throw Error(v?.error||'請使用家庭專屬連結啟用此裝置');}
  if(!r.ok)throw Error(v?.error||'伺服器暫時無法連線');
  return v;
 }
 async function configureAuth(){
- profile=await api('profile');mode=profile?'login':'register';
+ if(!familyAccessKey){$('activation').hidden=false;$('authForm').hidden=true;return;}
+ profile=await api('profile');$('activation').hidden=true;$('authForm').hidden=false;mode=profile?'login':'register';
  $('confirmWrap').hidden=!!profile;
  $('authSubmit').textContent=profile?'打開我的票券 ↗':'設定 PIN，開始收藏 ↗';
  const legacy=profile&&profile.pinLength!==6;
@@ -309,11 +326,13 @@ function batchImport(files){
 }
 
 function settings(){
- openModal('保管箱設定','僅限本人存取');
+ openModal('保管箱設定','家庭專屬 · 加密同步');
  const el=document.createElement('div');
- el.innerHTML='<div class="privacy-tag">🔒 ChatGPT 帳號存取限制＋保管箱 PIN加密</div><p class="details">品項、照片和使用紀錄會先在裝置上加密，再同步至雲端。同一個 ChatGPT 帳號及保管箱 PIN可在你的其他裝置使用。</p><p class="muted">忘記保管箱 PIN將無法解密票券，請保存在你的密碼管理工具。閒置 5 分鐘自動鎖定，切到背景時隱藏兌換碼。</p><p class="muted">使用狀態是手動標記，與麥當勞核銷系統無連動。</p><button type="button" id="installHelpSettings" class="btn primary wide">加入 iPhone 主畫面 ↗</button><button type="button" id="exportBackup" class="btn outline wide">下載加密備份</button><p class="muted">備份需使用原密碼解鎖。</p><label class="muted">還原此保管箱的加密備份<input type="file" id="restoreBackup" accept="application/json,.json"></label><a href="/signout-with-chatgpt?return_to=%2F" target="_top" class="text-btn">登出 ChatGPT 網站登入</a>';
+ el.innerHTML='<div class="privacy-tag">🔒 家庭專屬連結＋6 位 PIN 加密</div><p class="details">品項、照片和使用紀錄會先在裝置上加密，再同步至雲端。家人使用專屬連結啟用裝置，再輸入同一個 PIN，即可同步票券。</p><p class="muted">忘記保管箱 PIN將無法解密票券，請保存在你的密碼管理工具。閒置 5 分鐘自動鎖定，切到背景時隱藏兌換碼。</p><p class="muted">使用狀態是手動標記，與麥當勞核銷系統無連動。</p><button type="button" id="installHelpSettings" class="btn primary wide">加入 iPhone 主畫面 ↗</button><button type="button" id="exportBackup" class="btn outline wide">下載加密備份</button><p class="muted">備份需使用原密碼解鎖。</p><label class="muted">還原此保管箱的加密備份<input type="file" id="restoreBackup" accept="application/json,.json"></label><button type="button" id="copyFamilyLink" class="btn outline wide">複製家人啟用連結</button><p class="muted">連結只提供給家人；PIN 請另外告知。</p><button type="button" id="forgetDevice" class="text-btn">移除此裝置的家庭存取權</button>';
  $('modalBody').append(el);
  $('installHelpSettings').onclick=showInstallHelp;
+ $('copyFamilyLink').onclick=copyFamilyLink;
+ $('forgetDevice').onclick=()=>{if(!confirm('移除後需使用家庭專屬連結重新啟用，確定嗎？'))return;try{localStorage.removeItem(FAMILY_STORAGE);}catch{}familyAccessKey='';logout();};
  $('exportBackup').onclick=async()=>{
   try{
    const records=await api('coupons');const blob=new Blob([JSON.stringify({version:1,profile,records:records.items})],{type:'application/json'});
@@ -331,14 +350,26 @@ function settings(){
  };
 }
 
+async function copyFamilyLink(){
+ if(!familyAccessKey)return;
+ try{await navigator.clipboard.writeText(familyLink());notify('已複製家庭啟用連結，請只傳給家人');}catch{notify('無法複製，請使用最初收到的家庭專屬連結');}
+}
+async function activateDevice(ev){
+ ev.preventDefault();const key=readFamilyLink($('familyLinkInput').value);
+ if(!/^[A-Za-z0-9_-]{43}$/.test(key)){showAuthErr('請貼上完整的家庭啟用連結');return;}
+ const button=$('activateSubmit');button.disabled=true;familyAccessKey=key;
+ try{await configureAuth();try{localStorage.setItem(FAMILY_STORAGE,key);}catch{}$('familyLinkInput').value='';$('authError').hidden=true;notify('此裝置已啟用，輸入 6 位 PIN 即可開啟');}
+ catch(e){familyAccessKey='';showAuthErr(errtext(e));}finally{button.disabled=false;}
+}
+
 function isStandalone(){return navigator.standalone===true||!!window.matchMedia?.('(display-mode: standalone)').matches;}
 function updateInstallUI(){const installed=isStandalone();$('installHelpAuth').hidden=installed;$('standaloneHint').hidden=!installed;}
 function showInstallHelp(){
  openModal(isStandalone()?'主畫面版已啟用':'加入 iPhone 主畫面','我的票券 · 隨手開啟');
  const el=document.createElement('div');el.className='install-guide';
- el.innerHTML=isStandalone()?'<div class="install-app-icon"><img src="/apple-touch-icon.png?v=4" width="64" height="64" alt="我的票券圖示"></div><h4>已經像 App 一樣使用了</h4><p>下次直接點主畫面的「我的票券」。可用右上方的同步按鈕重新載入票券。</p>':'<div class="install-app-icon"><img src="/apple-touch-icon.png?v=4" width="64" height="64" alt="我的票券圖示"><div><strong>我的票券</strong><span>從主畫面，直接打開你的票券夾。</span></div></div><ol class="install-steps"><li><b>用 Safari 打開此網站</b><span>若目前在 ChatGPT、LINE 或其他 App 內，先選「在 Safari 開啟」。</span></li><li><b>點「分享」→「加入主畫面」</b><span>依 Safari 版面，分享按鈕也可能在「⋯」選單裡。</span></li><li><b>開啟「打開為網頁 App」</b><span>名稱保留「我的票券」，再點「加入」。</span></li></ol><p>找不到「加入主畫面」？滑到分享選單底部，點「編輯動作」加入。</p><button type="button" class="btn primary wide" id="copyAppLink">複製網站連結</button>';
+ el.innerHTML=isStandalone()?'<div class="install-app-icon"><img src="./apple-touch-icon.png?v=5" width="64" height="64" alt="我的票券圖示"></div><h4>已經像 App 一樣使用了</h4><p>下次直接點主畫面的「我的票券」。可用右上方的同步按鈕重新載入票券。</p>':'<div class="install-app-icon"><img src="./apple-touch-icon.png?v=5" width="64" height="64" alt="我的票券圖示"><div><strong>我的票券</strong><span>從主畫面，直接打開你的票券夾。</span></div></div><ol class="install-steps"><li><b>用 Safari 打開此網站</b><span>若目前在 ChatGPT、LINE 或其他 App 內，先選「在 Safari 開啟」。</span></li><li><b>點「分享」→「加入主畫面」</b><span>依 Safari 版面，分享按鈕也可能在「⋯」選單裡。</span></li><li><b>開啟「打開為網頁 App」</b><span>名稱保留「我的票券」，再點「加入」。</span></li></ol><p>找不到「加入主畫面」？滑到分享選單底部，點「編輯動作」加入。</p><button type="button" class="btn primary wide" id="copyAppLink">複製網站連結</button>';
  $('modalBody').append(el);
- if(!isStandalone())$('copyAppLink').onclick=async()=>{try{await navigator.clipboard.writeText(location.origin+'/vault.html');notify('已複製，請貼到 Safari 開啟');}catch{notify('請用 Safari 開啟目前網站，再從分享選單加入主畫面',6000);}};
+ if(!isStandalone())$('copyAppLink').onclick=async()=>{try{await navigator.clipboard.writeText(familyAccessKey?familyLink():new URL('.',location.href).href);notify('已複製，請貼到 Safari 開啟');}catch{notify('請用 Safari 開啟目前網站，再從分享選單加入主畫面',6000);}};
 }
 async function manualRefresh(){
  if(manualSyncing||!user||!validateOnline())return;
@@ -360,7 +391,8 @@ function saveName(v){name=String(v||'').trim().slice(0,25)||'我';localStorage.s
 async function logout(){closeModal();showAuth();await configureAuth().catch(e=>showAuthErr(errtext(e)));}
 async function init(){
  
- updateInstallUI();setupMobileViewport();
+ loadFamilyAccess();updateInstallUI();setupMobileViewport();
+ $('activationForm').addEventListener('submit',activateDevice);
  $('installHelpAuth').onclick=showInstallHelp;$('refreshBtn').onclick=manualRefresh;
  $('authForm').addEventListener('submit',submitAuth);
  $('closeModal').addEventListener('click',closeModal);

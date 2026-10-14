@@ -1,19 +1,40 @@
 <!doctype html>
-<html lang="zh-Hant">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer"><meta name="theme-color" content="#f6f6f3">
-<title>家庭票券夾</title>
-<style>
-:root{color-scheme:light;font-family:-apple-system,BlinkMacSystemFont,'PingFang TC','Microsoft JhengHei',sans-serif;color:#252820;background:#f6f6f3}*{box-sizing:border-box}body{margin:0;min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:26px 20px}main{max-width:430px;width:100%;background:white;border:1px solid #e4e6dc;border-radius:28px;padding:30px;box-shadow:0 20px 80px #303b2210}.brand{display:flex;align-items:center;gap:12px;font-weight:700;font-size:17px}.logo{background:#24271f;color:#f5dc59;border-radius:7px;padding:10px 9px;font-size:8px;letter-spacing:1px}.private{margin-left:auto;background:#f2f4ec;padding:5px 10px;border-radius:20px;font-size:10px;color:#919a82}.art{height:180px;position:relative;margin:25px 0}.ticket{width:250px;position:absolute;height:149px;border-radius:16px;padding:20px;box-shadow:0 12px 25px #25351b15}.back{right:0;top:0;transform:rotate(9deg);background:#f5dc59;color:#786b28}.front{left:0;top:20px;transform:rotate(-6deg);background:#252820;color:white}.ticket small{font-size:8px;letter-spacing:1.5px;opacity:.65}.ticket b{font-size:26px;font-weight:550;letter-spacing:-1px;display:block;line-height:1.3;margin-top:10px}.line{border-top:1px dashed #62694f;margin-top:14px;padding-top:7px;font-size:8px;color:#b2bc9d}.eyebrow{color:#8e997b;font-size:9px;letter-spacing:2px}h1{font-size:34px;font-weight:650;line-height:1.23;letter-spacing:-1.5px;margin:12px 0 14px}p{color:#919a81;font-size:12px;line-height:1.9;margin:0 0 24px}.features{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:25px}.features span{font-size:10px;color:#83916d;background:#f3f6ed;padding:7px 10px;border-radius:7px}.open{display:flex;justify-content:space-between;align-items:center;text-decoration:none;background:#252820;color:white;border-radius:13px;padding:17px 19px;font-size:13px;font-weight:600;min-height:50px}.open:focus-visible{outline:3px solid #bba840;outline-offset:4px}.foot{font-size:10px;color:#a4ac96;text-align:center;line-height:1.8;margin-top:18px}.foot svg{width:12px;height:12px;vertical-align:-2px;margin-right:3px}@media(max-width:360px){main{padding:24px}.ticket{width:220px}h1{font-size:30px}}
-</style>
-</head>
-<body><main>
-<div class="brand"><span class="logo">TICKET</span>家庭票券夾<span class="private">家人專屬</span></div>
-<div class="art" aria-hidden="true"><div class="ticket back"><small>GOOD THINGS, TOGETHER.</small><b>一張券，<br>一份小確幸。</b></div><div class="ticket front"><small>OUR FAMILY WALLET</small><b>想吃的，<br>都收好了。</b><div class="line">KEEP A LITTLE TREAT IN YOUR POCKET ↗</div></div></div>
-<span class="eyebrow">A LITTLE TREAT, TOGETHER.</span><h1>家人的優惠券，<br>放在一起。</h1>
-<p>品項、效期、使用紀錄，一眼就找到。<br>登入後，用家庭 PIN 打開你們的收藏。</p>
-<div class="features"><span>品項與效期</span><span>已用／未用</span><span>加密同步</span></div>
-<a class="open" href="https://private-voucher-vault.linyuxian517.chatgpt.site" referrerpolicy="no-referrer"><span>開啟家庭票券夾</span><span aria-hidden="true">↗</span></a>
-<div class="foot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>僅限受邀帳號登入 · 6 位數字 PIN 解鎖</div>
-</main></body></html>
+<html lang="zh-Hant"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f6f6f3"><meta name="referrer" content="no-referrer"><meta name="robots" content="noindex,nofollow"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://private-voucher-vault.linyuxian517.chatgpt.site; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="我的票券">
+<link rel="manifest" href="./manifest.webmanifest"><link rel="icon" href="./favicon.svg?v=5" type="image/svg+xml"><link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png?v=5"><meta name="mobile-web-app-capable" content="yes"><meta name="format-detection" content="telephone=no"><link rel="stylesheet" href="./style.css?v=5">
+<title>我的票券 · 私密保管箱</title><script type="module" src="./app.js?v=5"></script></head>
+<body><div id="notice" class="notice" role="status" hidden></div>
+<section id="auth" class="auth-page">
+ <div class="auth-panel">
+  <div class="brand"><span class="brand-mark">TICKET</span><span>我的票券</span><span class="private-tag">私人</span></div>
+  <div class="wallet-art" aria-hidden="true"><div class="art-ticket back"><span>MCDONALD’S</span><i></i><b>留一份好心情。</b></div><div class="art-ticket front"><span>YOUR PRIVATE WALLET</span><b>好吃的，<br>都在這裡。</b><div class="art-bottom">一張券，一頓小確幸 <span>↗</span></div></div></div>
+  <div class="auth-heading"><span class="eyebrow">YOUR POCKET, YOUR TICKETS</span><h1>解鎖你的<br>美味收藏。</h1><p class="subtitle">輸入 6 位數字，打開專屬票券夾。</p></div>
+  <div id="setupInfo" class="warning" hidden></div>
+  <section id="activation" class="activation" hidden><h2>啟用這台手機</h2><p>第一次使用，請貼上家庭專屬連結。啟用後只需輸入 6 位 PIN，不用登入 ChatGPT。</p><form id="activationForm"><label for="familyLinkInput">家庭啟用連結</label><input id="familyLinkInput" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="貼上家人提供的連結" required><button id="activateSubmit" class="btn primary wide" type="submit">啟用此裝置 ↗</button></form></section>
+ <form id="authForm">
+   <label for="password">6 位數字 PIN</label><input id="password" class="pin-input" type="password" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="current-password" placeholder="••••••" enterkeyhint="go" autocapitalize="off" spellcheck="false" aria-label="六位數字保管箱密碼" required>
+   <div id="confirmWrap" hidden><label for="confirm">再輸入一次</label><input id="confirm" class="pin-input" type="password" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="new-password" placeholder="••••••" enterkeyhint="go" autocapitalize="off" spellcheck="false" aria-label="再次輸入六位數字密碼"></div>
+<button id="authSubmit" class="btn primary wide" type="submit">打開我的票券 <span>↗</span></button>
+  </form>
+  <p id="authError" class="error" role="alert" hidden></p>
+  <div class="legal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 018 0v3"/><path d="M12 14v3"/></svg><span>家庭連結＋6 位 PIN 保護。PIN 不會上傳。</span></div>
+ <button type="button" id="installHelpAuth" class="install-link">加入 iPhone 主畫面 ↗</button><p id="standaloneHint" class="standalone-hint" hidden>已從主畫面開啟 · 我的票券</p>
+ </div>
+</section>
+<div id="main" hidden>
+<header class="header"><div class="container header-inner"><div class="brand"><span class="brand-mark">TICKET</span><span>我的票券</span></div><div class="header-actions"><button type="button" id="refreshBtn" class="sync-button" aria-label="重新同步票券"><span class="sync-chip" id="syncState">同步中</span></button><button class="icon-btn" id="settingsBtn" aria-label="保管箱設定"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="white"/><circle cx="15" cy="17" r="3" fill="white"/></svg></button><button class="icon-btn" id="logoutBtn" aria-label="鎖定保管箱"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 018 0v3"/><path d="M12 14v3"/></svg></button></div></div></header>
+<main class="container">
+ <section class="hero"><div class="hero-copy"><span class="eyebrow">YOUR PRIVATE TICKET WALLET</span><h2>今天想吃什麼？</h2><p>你的麥當勞票券，隨時準備好。</p><span class="hero-private"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 018 0v3"/><path d="M12 14v3"/></svg> 家人專屬票券夾</span></div><div class="hero-art" aria-hidden="true"><div class="mini-ticket"><span>McDonald’s</span><b>好心情<br>兌換中。</b><i></i><span>KEEP IT IN YOUR POCKET</span></div><div class="art-circle">M</div></div></section>
+ <section class="stat-row" aria-label="票券統計"><div class="stat available"><div>已確認未用</div><strong id="countUnused">0</strong><small>張票券</small></div><div class="stat"><div>已經使用</div><strong id="countUsed">0</strong><small>張票券</small></div><div class="stat"><div>已經過期</div><strong id="countExpired">0</strong><small>張票券</small></div></section>
+ <section class="content-head"><div><h3>口袋裡的票券</h3><p id="listSubtitle">正在整理你的收藏…</p></div><div class="add-actions"><button type="button" class="btn outline" id="batchAdd"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="5" y="5" width="15" height="15" rx="3"/><path d="M5 15l4-4 5 6 3-3 3 4M2 15V5a3 3 0 013-3h10"/><circle cx="15" cy="10" r="1"/></svg><span>批次匯入</span></button><button type="button" class="btn primary" id="addBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>新增票券</span></button></div></section>
+ <input type="file" id="batchFiles" multiple accept="image/jpeg,image/png,image/webp" hidden>
+ <section class="toolbar"><div class="tabs" role="tablist" aria-label="使用狀態"><button class="tab" data-filter="unconfirmed" role="tab" aria-selected="false">待確認 <span id="countUnconfirmed">0</span></button><button class="tab active" data-filter="unused" role="tab" aria-selected="true">未使用</button><button class="tab" data-filter="used" role="tab" aria-selected="false">已使用</button><button class="tab" data-filter="expired" role="tab" aria-selected="false">已過期</button><button class="tab" data-filter="all" role="tab" aria-selected="false">全部</button></div><div class="toolbar-right"><input id="search" enterkeyhint="search" type="search" placeholder="搜尋品項" aria-label="搜尋品項"><select id="sort" aria-label="排序"><option value="expiry">快到期優先</option><option value="recent">最近更新</option><option value="name">品項名稱</option></select></div></section>
+ <div id="offlineMessage" class="warning" hidden>目前離線，可查看已載入的票券；新增和修改需連線。</div><div id="pendingMessage" class="warning" hidden>票券加密儲存中，請保持網站開啟。</div>
+ <section id="cards" class="cards" aria-live="polite"></section>
+ <footer class="footer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 018 0v3"/><path d="M12 14v3"/></svg><span>你的私人收藏 · 加密保存，安心出示</span></footer>
+</main></div>
+<div id="identityPrompt" hidden></div><button id="customName" hidden></button>
+<div id="modal" class="modal-layer" hidden><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="dialog-head"><div><span id="modalEyebrow" class="eyebrow"></span><h3 id="modalTitle">票券</h3></div><button type="button" id="closeModal" class="close-btn" aria-label="關閉">×</button></div><div id="modalBody"></div></div></div>
+</body></html>

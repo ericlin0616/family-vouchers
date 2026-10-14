@@ -1,36 +1,35 @@
-# 家庭兌換券
+# 家庭票券夾
 
-麥當勞票券管理網站：商品品項、兌換期限、未使用／已使用／已過期分類、批次匯入照片、6 位數字 PIN、加密同步與備份。
+手機票券 App 直接部署在 GitHub Pages，開啟後不會轉往 ChatGPT 登入頁。
 
-**私密票券夾：** https://private-voucher-vault.linyuxian517.chatgpt.site
+- 網站： https://ericlin0616.github.io/family-vouchers/
+- 第一次使用須由家人提供含家庭存取金鑰的專屬啟用連結。金鑰在 URL fragment 中，不會送至 GitHub。啟用後會從網址列移除，保存在該瀏覽器。
+- 每次解鎖使用原本的 6 位 PIN，PIN 只用於瀏覽器內 PBKDF2/AES-GCM 解密，不會傳給伺服器。
+- 家人啟用各自裝置後，共用相同的加密票券與使用紀錄。
 
-## 這個儲存庫的用途
+## 部署架構
 
-- `docs/`：可由 GitHub Pages 發布的公開登入入口。沒有真實票券資料。
-- `site/`：目前私密網站的完整程式碼；後端由 Sites 的存取名單及 R2 儲存保護。
+`docs/` 是完整的 HTML、CSS、JavaScript App，並非跳轉入口。GitHub Pages 設為 `main` 的 `/docs`。
 
-GitHub Pages 只提供登入入口。點「開啟家庭票券夾」後，進入上述受保護的網站。GitHub Pages 本身不執行 `site/app/api/`，也不儲存票券、PIN 或登入憑證。
+私密資料留在獨立的 Worker/R2 後端，不放進 GitHub。`site/` 是後端與前端的完整原始碼。
+所有資料 API，包括保管箱設定、加密票券與待匯入截圖，都必須提供家庭存取金鑰。伺服器只保存其 SHA-256 雜湊，透過未公開的 runtime secret `FAMILY_ACCESS_KEY_HASH` 設定。未設定時拒絕所有資料請求。CORS 僅允許本網站與後端同源，不使用跨站 Cookie 或 ChatGPT 登入。
 
-## 啟用 GitHub Pages
+網站程式可公開；家庭啟用金鑰、PIN、票券序號、QR Code、原始截圖、執行期資料及私人備份都不得提交至此儲存庫。
 
-1. 開啟此儲存庫的 **Settings → Pages**。
-2. **Source** 選 **Deploy from a branch**。
-3. 選擇 **main** 分支、**/docs** 資料夾，再按 **Save**。
-4. 等 GitHub Pages 的發布作業成功後，使用設定頁顯示的網站網址。
+## 更新靜態網站
 
-## 家人共用
+修改 `site/public` 後執行：
 
-目前私密網站只開放擁有者帳號。要讓爸媽一起使用，需要把他們登入 ChatGPT 的電子郵件加入網站存取名單；受邀帳號登入後，使用同一組 6 位數字 PIN 解鎖同一個保管箱。加入名單可能寄出邀請通知。
+```sh
+node scripts/sync-pages.mjs
+```
 
-PIN 在第一次使用時由擁有者自行設定，不會提交到 GitHub。忘記 PIN 將無法解密票券。已使用狀態是手動標記，並未連動麥當勞核銷系統。
+提交產生的 `docs/` 檔案即可更新 GitHub Pages。後端修改須另行建置及部署；更動 runtime secret 後也須部署才生效。撤換家庭金鑰時須重新提供專屬啟用連結給每台裝置。
 
-## 安全界線
+## 主畫面使用
 
-- 真實兌換券照片、QR Code、序號和加密後的票券紀錄皆不在這個公開儲存庫。
-- 商品品項、照片、使用狀態等資料由瀏覽器以 PBKDF2 衍生金鑰並透過 AES-GCM 加密後同步。
-- 6 位 PIN 搭配網站的帳號存取限制使用。不要把後端改成公開讀寫，也不要把後端服務權杖加入 Pages 或原始碼。
-- `site/.openai/hosting.json` 的 project_id 只是既有網站識別碼，不是存取憑證。Sites 仍以原本受管理的來源儲存庫發布；這裡是可檢視的程式碼副本，推送此儲存庫不會更新私密後端。
+在 Safari 開啟專屬連結，透過「分享 → 加入主畫面」安裝。若主畫面 App 使用獨立的瀏覽器儲存空間，首次開啟時貼上同一個家庭啟用連結即可。啟用連結只給家人，PIN 請分開提供。
 
-## 程式驗證
+## 驗證
 
-目前私密網站已通過 TypeScript 檢查、Vinext 建置，以及加密／解密、錯誤 PIN、鎖定清理、使用狀態同步、衝突拒絕與跨站更新拒絕的模擬測試。網站部署後亦確認匿名請求無法讀取私密 API。手機實機 UI 尚未驗證。
+已檢查 PIN 加密、鎖定清除、批次匯入與重複略過、並行更新衝突、家庭金鑰驗證、未授權讀寫阻擋、CORS、啟用連結處理，以及 GitHub Pages 相對資產路徑。未使用 service worker 快取票券資料。

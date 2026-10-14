@@ -1,0 +1,11 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+const source=path.join(root,'site/public'),target=path.join(root,'docs');
+fs.mkdirSync(target,{recursive:true});
+const assets=['app.js','style.css','vault.html','manifest.webmanifest','favicon.svg','app-icon.svg','apple-touch-icon.png','icon-192.png','icon-512.png','icon-maskable.png'];
+for(const name of assets)fs.copyFileSync(path.join(source,name),path.join(target,name));
+fs.copyFileSync(path.join(source,'vault.html'),path.join(target,'index.html'));
+fs.writeFileSync(path.join(target,'.nojekyll'),'');
+console.log('Prepared full static voucher app in docs/; no private runtime data included.');
