@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+ <defs><mask id="ticket"><rect x="100" y="140" width="312" height="232" rx="36" fill="white"/><circle cx="100" cy="256" r="23" fill="black"/><circle cx="412" cy="256" r="23" fill="black"/></mask></defs>
+ <path fill="#22231f" d="M0 0h512v512H0z"/>
+ <g transform="rotate(-9 256 256)"><rect x="100" y="140" width="312" height="232" fill="#f5dc59" mask="url(#ticket)"/>
+ <path d="M312 164v20m0 24v20m0 24v20m0 24v20m0 24v8" fill="none" stroke="#22231f" stroke-width="8" stroke-linecap="round"/>
+ <rect x="163" y="235" width="88" height="72" rx="15" fill="#22231f"/>
+ <path d="M181 236v-20a26 26 0 0 1 52 0v20" fill="none" stroke="#22231f" stroke-width="14" stroke-linecap="round"/>
+ <path d="M207 264v15" stroke="#f5dc59" stroke-width="9" stroke-linecap="round"/></g>
+</svg>

@@ -10,7 +10,7 @@ const $ = id => document.getElementById(id);
 const enc = new TextEncoder();
 const dec = new TextDecoder();
 let user = null, vaultKey = null, unsub = null, profile = null, syncTag = '';
-let syncing = false, importing = false;
+let syncing = false, importing = false, manualSyncing = false, modalReturnFocus = null;
 let coupons = [], mode = 'login', filter = 'unused', activeId = null, name = localStorage.getItem('family_coupon_name') || '';
 let lastActivity = Date.now(), cryptoSalt = '', syncGeneration = 0, loading = false;
 const weekdays = new Intl.DateTimeFormat('zh-TW', {timeZone:'Asia/Taipei', year:'numeric',month:'2-digit',day:'2-digit'});
@@ -178,8 +178,8 @@ function updateConnectivity(){
  $('syncState').textContent=online?'● 已連接雲端':'● 網路離線';
  $('syncState').className='sync-chip'+(online?'':' offline');
 }
-function closeModal(){const m=$('modal');m.hidden=true;document.body.classList.remove('modal-open');$('modalBody').replaceChildren();activeId=null;}
-function openModal(title,eyebrow='私密同步'){$('modalTitle').textContent=title;$('modalEyebrow').textContent=eyebrow;$('modalBody').replaceChildren();$('modal').hidden=false;document.body.classList.add('modal-open');}
+function closeModal(){const m=$('modal');m.hidden=true;document.body.classList.remove('modal-open','code-open');$('modalBody').replaceChildren();activeId=null;if(!document.hidden&&modalReturnFocus?.isConnected)modalReturnFocus.focus({preventScroll:true});modalReturnFocus=null;}
+function openModal(title,eyebrow='私密同步'){if($('modal').hidden)modalReturnFocus=document.activeElement;document.body.classList.remove('code-open');$('modalTitle').textContent=title;$('modalEyebrow').textContent=eyebrow;$('modalBody').replaceChildren();$('modal').hidden=false;document.body.classList.add('modal-open');$('closeModal').focus?.({preventScroll:true});}
 async function readDataUrl(file){
  if(!file) return '';
  if(!file.type.startsWith('image/')||file.type==='image/svg+xml'||file.type==='image/gif')throw new Error('請選擇 JPG、PNG 或 WebP 圖片');
@@ -247,7 +247,9 @@ function showDetail(id){
    cover.innerHTML='<div class="preview-lock">'+LOCK_ICON+'</div><strong>準備兌換了嗎？</strong><p class="muted">兌換碼平常收好，需要時再出示。</p><button type="button" class="btn primary">顯示兌換碼 ↗</button>';
    body.append(cover);
    cover.querySelector('button').onclick=()=>{
-     cover.replaceChildren();const div=document.createElement('div');div.className='photo-scroll';
+     document.body.classList.add('code-open');
+     cover.replaceChildren();const hide=document.createElement('button');hide.type='button';hide.className='btn outline hide-code';hide.textContent='收起兌換碼';hide.onclick=()=>{document.body.classList.remove('code-open');showDetail(c.id);};cover.append(hide);
+     const div=document.createElement('div');div.className='photo-scroll';
      const img=document.createElement('img');img.className='voucher-image';img.alt='兌換券原始圖片（含兌換碼）';img.referrerPolicy='no-referrer';img.src=c.image;div.append(img);cover.append(div);
      const zoom=document.createElement('button');zoom.className='btn outline';zoom.style.marginTop='12px';zoom.textContent='放大原圖';
      zoom.onclick=()=>{div.classList.toggle('zoom');zoom.textContent=div.classList.contains('zoom')?'縮回適合畫面':'放大原圖';};cover.append(zoom);
@@ -309,8 +311,9 @@ function batchImport(files){
 function settings(){
  openModal('保管箱設定','僅限本人存取');
  const el=document.createElement('div');
- el.innerHTML='<div class="privacy-tag">🔒 ChatGPT 帳號存取限制＋保管箱 PIN加密</div><p class="details">品項、照片和使用紀錄會先在裝置上加密，再同步至雲端。同一個 ChatGPT 帳號及保管箱 PIN可在你的其他裝置使用。</p><p class="muted">忘記保管箱 PIN將無法解密票券，請保存在你的密碼管理工具。閒置 5 分鐘自動鎖定，切到背景時隱藏兌換碼。</p><p class="muted">使用狀態是手動標記，與麥當勞核銷系統無連動。</p><button type="button" id="exportBackup" class="btn outline wide">下載加密備份</button><p class="muted">備份需使用原密碼解鎖。</p><label class="muted">還原此保管箱的加密備份<input type="file" id="restoreBackup" accept="application/json,.json"></label><a href="/signout-with-chatgpt?return_to=%2F" target="_top" class="text-btn">登出 ChatGPT 網站登入</a>';
+ el.innerHTML='<div class="privacy-tag">🔒 ChatGPT 帳號存取限制＋保管箱 PIN加密</div><p class="details">品項、照片和使用紀錄會先在裝置上加密，再同步至雲端。同一個 ChatGPT 帳號及保管箱 PIN可在你的其他裝置使用。</p><p class="muted">忘記保管箱 PIN將無法解密票券，請保存在你的密碼管理工具。閒置 5 分鐘自動鎖定，切到背景時隱藏兌換碼。</p><p class="muted">使用狀態是手動標記，與麥當勞核銷系統無連動。</p><button type="button" id="installHelpSettings" class="btn primary wide">加入 iPhone 主畫面 ↗</button><button type="button" id="exportBackup" class="btn outline wide">下載加密備份</button><p class="muted">備份需使用原密碼解鎖。</p><label class="muted">還原此保管箱的加密備份<input type="file" id="restoreBackup" accept="application/json,.json"></label><a href="/signout-with-chatgpt?return_to=%2F" target="_top" class="text-btn">登出 ChatGPT 網站登入</a>';
  $('modalBody').append(el);
+ $('installHelpSettings').onclick=showInstallHelp;
  $('exportBackup').onclick=async()=>{
   try{
    const records=await api('coupons');const blob=new Blob([JSON.stringify({version:1,profile,records:records.items})],{type:'application/json'});
@@ -328,10 +331,37 @@ function settings(){
  };
 }
 
+function isStandalone(){return navigator.standalone===true||!!window.matchMedia?.('(display-mode: standalone)').matches;}
+function updateInstallUI(){const installed=isStandalone();$('installHelpAuth').hidden=installed;$('standaloneHint').hidden=!installed;}
+function showInstallHelp(){
+ openModal(isStandalone()?'主畫面版已啟用':'加入 iPhone 主畫面','我的票券 · 隨手開啟');
+ const el=document.createElement('div');el.className='install-guide';
+ el.innerHTML=isStandalone()?'<div class="install-app-icon"><img src="/apple-touch-icon.png?v=4" width="64" height="64" alt="我的票券圖示"></div><h4>已經像 App 一樣使用了</h4><p>下次直接點主畫面的「我的票券」。可用右上方的同步按鈕重新載入票券。</p>':'<div class="install-app-icon"><img src="/apple-touch-icon.png?v=4" width="64" height="64" alt="我的票券圖示"><div><strong>我的票券</strong><span>從主畫面，直接打開你的票券夾。</span></div></div><ol class="install-steps"><li><b>用 Safari 打開此網站</b><span>若目前在 ChatGPT、LINE 或其他 App 內，先選「在 Safari 開啟」。</span></li><li><b>點「分享」→「加入主畫面」</b><span>依 Safari 版面，分享按鈕也可能在「⋯」選單裡。</span></li><li><b>開啟「打開為網頁 App」</b><span>名稱保留「我的票券」，再點「加入」。</span></li></ol><p>找不到「加入主畫面」？滑到分享選單底部，點「編輯動作」加入。</p><button type="button" class="btn primary wide" id="copyAppLink">複製網站連結</button>';
+ $('modalBody').append(el);
+ if(!isStandalone())$('copyAppLink').onclick=async()=>{try{await navigator.clipboard.writeText(location.origin+'/vault.html');notify('已複製，請貼到 Safari 開啟');}catch{notify('請用 Safari 開啟目前網站，再從分享選單加入主畫面',6000);}};
+}
+async function manualRefresh(){
+ if(manualSyncing||!user||!validateOnline())return;
+ manualSyncing=true;$('refreshBtn').disabled=true;$('syncState').textContent='同步中…';
+ try{syncTag='';await refresh();await importInbox();if(user)notify('票券已更新');}catch(e){if(user){$('syncState').textContent='點此重試';fail(errtext(e));}}
+ finally{manualSyncing=false;$('refreshBtn').disabled=false;}
+}
+function setupMobileViewport(){
+ const vp=window.visualViewport;if(!vp)return;
+ const update=()=>{
+  document.documentElement.style.setProperty('--visible-height',Math.round(vp.height)+'px');
+  const typing=/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName||'');
+  document.body.classList.toggle('keyboard-open',typing&&window.innerHeight-vp.height>120);
+ };
+ vp.addEventListener('resize',update);document.addEventListener('focusin',update);document.addEventListener('focusout',()=>setTimeout(update,0));update();
+}
+
 function saveName(v){name=String(v||'').trim().slice(0,25)||'我';localStorage.setItem('family_coupon_name',name);$('identityPrompt').hidden=true;}
 async function logout(){closeModal();showAuth();await configureAuth().catch(e=>showAuthErr(errtext(e)));}
 async function init(){
  
+ updateInstallUI();setupMobileViewport();
+ $('installHelpAuth').onclick=showInstallHelp;$('refreshBtn').onclick=manualRefresh;
  $('authForm').addEventListener('submit',submitAuth);
  $('closeModal').addEventListener('click',closeModal);
  $('modal').addEventListener('click',ev=>{if(ev.target===$('modal'))closeModal();});
@@ -349,7 +379,9 @@ async function init(){
  $('customName').onclick=()=>{const entered=prompt('請輸入在家中的稱呼，例如：爸爸、媽媽');if(entered)saveName(entered);};
  window.addEventListener('online',updateConnectivity);window.addEventListener('offline',updateConnectivity);
  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('modal').hidden)closeModal();});
- document.addEventListener('visibilitychange',()=>{if(document.hidden)closeModal();else if(user && Date.now()-lastActivity>300000)logout();});
+ document.addEventListener('visibilitychange',()=>{if(document.hidden)closeModal();else if(user){if(Date.now()-lastActivity>300000)logout();else refresh().catch(()=>{});}});
+ window.addEventListener('pagehide',closeModal);
+ window.addEventListener('pageshow',e=>{if(e.persisted){closeModal();if(user&&Date.now()-lastActivity>300000)logout();}});
  for(const e of ['pointerdown','keydown','touchstart'])window.addEventListener(e,()=>lastActivity=Date.now(),{passive:true});
  setInterval(()=>{if(user && Date.now()-lastActivity>300000)logout();},20000);
  try{
