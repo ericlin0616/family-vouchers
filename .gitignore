@@ -1,0 +1,10 @@
+node_modules/
+.site-runtime/
+.sites-runtime/
+.env
+.env.*
+*.pem
+*.key
+*.tsbuildinfo
+*.voucher-backup.json
+uploads/
