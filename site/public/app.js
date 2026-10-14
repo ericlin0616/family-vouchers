@@ -10,7 +10,7 @@ const $ = id => document.getElementById(id);
 const enc = new TextEncoder();
 const dec = new TextDecoder();
 let user = null, vaultKey = null, unsub = null, profile = null, syncTag = '';
-let syncing = false;
+let syncing = false, importing = false;
 let coupons = [], mode = 'login', filter = 'unused', activeId = null, name = localStorage.getItem('family_coupon_name') || '';
 let lastActivity = Date.now(), cryptoSalt = '', syncGeneration = 0, loading = false;
 const weekdays = new Intl.DateTimeFormat('zh-TW', {timeZone:'Asia/Taipei', year:'numeric',month:'2-digit',day:'2-digit'});
@@ -101,24 +101,51 @@ function subscribe(){
  unsub=()=>clearInterval(timer);
 }
 async function importInbox(){
- const pending=await api('inbox');if(!pending)return;
- const id=pending.id;
- if(!coupons.some(c=>c.id===id)){
-  const data={title:pending.title,expiry:pending.expiry,image:pending.image,fingerprint:await fingerprint(pending.image),notes:'上傳的票券；使用狀態待確認',used:false,usedAt:null,usedBy:'',createdAt:Date.now(),updatedAt:Date.now()};
-  const payload=await encryptObject(data);await api('coupons/'+id,'PUT',payload);syncTag='';await refresh();
- }
- await api('inbox','DELETE');notify('已加入你上傳的雞塊＋綠茶兌換券；請確認是否已使用',6000);
+ if(importing||!user||!vaultKey)return;
+ importing=true;const gen=syncGeneration;
+ let added=0,duplicates=0,failed=0;
+ try{
+  const [legacy,batch]=await Promise.all([api('inbox'),api('inbox-items')]);
+  const pending=[...(legacy?[{...legacy,ack:'inbox'}]:[]),...batch.items.map(c=>({...c,ack:'inbox-items/'+c.id}))];
+  for(const item of pending){
+   if(!user||gen!==syncGeneration)return;
+   try{
+    const fp=await fingerprint(item.image);
+    if(!user||gen!==syncGeneration)return;
+    const exists=()=>coupons.some(c=>c.id===item.id||c.fingerprint===fp);
+    if(exists())duplicates++;
+    else{
+     const data={title:item.title,expiry:item.expiry||'',image:item.image,fingerprint:fp,statusConfirmed:false,notes:item.expiry?'使用狀態待確認':'使用狀態與效期待確認',used:false,usedAt:null,usedBy:'',createdAt:Date.now(),updatedAt:Date.now()};
+     try{await saveCoupon(data,null,item.id);added++;}
+     catch(e){syncTag='';await refresh();if(!exists())throw e;duplicates++;}
+    }
+    if(!user||gen!==syncGeneration)return;
+    await api(item.ack,'DELETE',null,item.revision?{'If-Match':item.revision}:{});
+   }catch{failed++;}
+  }
+  if(!user||gen!==syncGeneration)return;
+  if(coupons.some(isUnconfirmed))selectFilter('unconfirmed');
+  if(pending.length)notify(`已加入 ${added} 張${duplicates?`，略過 ${duplicates} 張重複圖片`:''}${failed?`；${failed} 張保留待重試`:''}。請確認使用狀態。`,7000);
+ }finally{importing=false;}
+}
+function isUnconfirmed(c){return !c.used&&(c.statusConfirmed===false||(c.statusConfirmed===undefined&&/使用狀態待確認/.test(c.notes||'')));}
+function confirmedNotes(c){return (c.notes||'').replace(/^(?:上傳的票券；)?使用狀態待確認$/,'').replace(/^使用狀態與效期待確認$/,'效期待確認');}
+function selectFilter(value){filter=value;document.querySelectorAll('.tab').forEach(t=>{const active=t.dataset.filter===value;t.classList.toggle('active',active);t.setAttribute('aria-selected',String(active));});render();}
+async function confirmUnused(id){
+ if(!validateOnline())return;
+ const c=coupons.find(v=>v.id===id);if(!c||!isUnconfirmed(c))return;
+ try{const {id:omitId,revision:omitRevision,...data}=c;await saveCoupon({...data,notes:confirmedNotes(c),statusConfirmed:true,updatedAt:Date.now()},id);notify('已確認為未使用');}catch(e){fail(errtext(e));}
 }
 
 function getExpired(c){return !!(c.expiry && c.expiry < new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()));}
-function formatDate(s){return s ? s.replaceAll('-','/'):'未設定效期';}
+function formatDate(s){return s ? s.replaceAll('-','/'):'效期待確認';}
 function render(){
- const unused=coupons.filter(c=>!c.used&&!getExpired(c)).length;
+ const unused=coupons.filter(c=>!c.used&&!isUnconfirmed(c)&&!getExpired(c)).length;
  const used=coupons.filter(c=>c.used).length;
  const expired=coupons.filter(c=>!c.used&&getExpired(c)).length;
- $('countUnused').textContent=unused;$('countUsed').textContent=used;$('countExpired').textContent=expired;
+ $('countUnconfirmed').textContent=coupons.filter(isUnconfirmed).length;$('countUnused').textContent=unused;$('countUsed').textContent=used;$('countExpired').textContent=expired;
  const key=$('search').value.trim().toLocaleLowerCase();
- const filtered=coupons.filter(c => (filter==='all'||(filter==='used'?c.used:filter==='expired'?!c.used&&getExpired(c):!c.used&&!getExpired(c))) &&
+ const filtered=coupons.filter(c => (filter==='all'||(filter==='unconfirmed'?isUnconfirmed(c):filter==='used'?c.used:filter==='expired'?!c.used&&getExpired(c):!c.used&&!isUnconfirmed(c)&&!getExpired(c))) &&
    ((c.title||'').toLocaleLowerCase().includes(key)||(c.notes||'').toLocaleLowerCase().includes(key)));
  const order=$('sort').value;
  filtered.sort((a,b)=>order==='name'?(a.title||'').localeCompare(b.title||'','zh-Hant'):
@@ -134,14 +161,14 @@ function render(){
   const card=document.createElement('article');card.className='card';
   card.innerHTML='<div class="card-label"><span>McDonald’s</span><span class="pill"></span></div><div class="card-top"><span class="food-emoji">'+foodIcon(c.title)+'</span><div class="card-head"><strong></strong><div class="meta"></div><div class="used-by"></div></div></div><div class="card-bottom"><button class="btn primary view" type="button">出示票券 ↗</button><button class="btn outline state" type="button"></button></div>';
   card.querySelector('strong').textContent=c.title||'未命名兌換券';
-  card.querySelector('.meta').textContent=`有效至 ${formatDate(c.expiry)}`;
+  card.querySelector('.meta').textContent=c.expiry?`有效至 ${formatDate(c.expiry)}`:'效期待確認';
   const badge=card.querySelector('.pill');const expired=getExpired(c);
-  badge.className='pill '+(c.used?'used':expired?'expired':'unused');
-  badge.textContent=(c.pending?'同步中 · ':'')+(c.used?'已使用':expired?'已過期':'未使用');
+  badge.className='pill '+(c.used?'used':isUnconfirmed(c)?'unconfirmed':expired?'expired':'unused');
+  badge.textContent=(c.pending?'同步中 · ':'')+(c.used?'已使用':isUnconfirmed(c)?'待確認':expired?'已過期':'未使用');
   if(c.used){card.querySelector('.used-by').textContent=`${c.usedBy||'我'} · ${c.usedAt ? new Date(c.usedAt).toLocaleString('zh-TW',{timeZone:'Asia/Taipei',hour12:false}):'已兌換'}`;}
   card.querySelector('.view').addEventListener('click',()=>showDetail(c.id));
-  const s=card.querySelector('.state');s.className='btn outline state';s.textContent=c.used?'恢復未用':'標記已用';
-  s.disabled=Boolean(c.pending);s.addEventListener('click',()=>toggleUsed(c.id));
+  const s=card.querySelector('.state');s.className='btn outline state';s.textContent=isUnconfirmed(c)?'確認未使用':c.used?'恢復未用':'標記已用';
+  s.disabled=Boolean(c.pending);s.addEventListener('click',()=>isUnconfirmed(c)?confirmUnused(c.id):toggleUsed(c.id));
   host.append(card);
  }
 }
@@ -200,7 +227,7 @@ function showEdit(id=null){
       const file=$('editFile').files[0];let image=c?.image||'';
       if(file)image=await readDataUrl(file);const fp=image?await fingerprint(image):'';
       const data={fingerprint:fp,title:$('editTitle').value.trim(),expiry:$('editExpiry').value,notes:$('editNotes').value.trim(),image,
-        used:!!c?.used,usedAt:c?.usedAt||null,usedBy:c?.usedBy||'',createdAt:c?.createdAt||Date.now(),updatedAt:Date.now()};
+        statusConfirmed:c?(!isUnconfirmed(c)):true,used:!!c?.used,usedAt:c?.usedAt||null,usedBy:c?.usedBy||'',createdAt:c?.createdAt||Date.now(),updatedAt:Date.now()};
       if(!data.title)throw new Error('請輸入品項名稱');
       await saveCoupon(data,c?.id||null);
       closeModal();notify('✓ 已安全儲存並同步');
@@ -212,7 +239,7 @@ function showDetail(id){
  const c=coupons.find(v=>v.id===id);if(!c)return;
  activeId=id;openModal(c.title,'兌換券詳細資料');
  const body=$('modalBody');
- const info=document.createElement('div');info.className='details';info.textContent=`到期日：${formatDate(c.expiry)} · 狀態：${c.used?'已使用':getExpired(c)?'已過期':'未使用'}`;body.append(info);
+ const info=document.createElement('div');info.className='details';info.textContent=`到期日：${formatDate(c.expiry)} · 狀態：${c.used?'已使用':isUnconfirmed(c)?'待確認':getExpired(c)?'已過期':'未使用'}`;body.append(info);
  if(c.used){const used=document.createElement('p');used.className='used-by';used.textContent=`最後使用者：${c.usedBy||'我'} ${c.usedAt?new Date(c.usedAt).toLocaleString('zh-TW',{timeZone:'Asia/Taipei',hour12:false}):''}`;body.append(used);}
  if(c.notes){const notes=document.createElement('p');notes.className='details';notes.textContent=`備註：${c.notes}`;body.append(notes);}
  if(c.image){
@@ -243,8 +270,8 @@ async function toggleUsed(id){
  const message=c.used?'確定恢復成「未使用」？這會同步更新你的其他裝置。':`確定「${c.title}」已完成兌換？這是手動紀錄，不會向麥當勞查詢核銷狀態。`;
  if(!confirm(message))return;
  try{
-   const fresh={fingerprint:c.fingerprint||'',title:c.title,expiry:c.expiry||'',notes:c.notes||'',image:c.image||'',
-      used:!c.used,usedAt:c.used?null:Date.now(),usedBy:c.used?'':name||'我',createdAt:c.createdAt||Date.now(),updatedAt:Date.now()};
+   const fresh={fingerprint:c.fingerprint||'',title:c.title,expiry:c.expiry||'',notes:confirmedNotes(c),image:c.image||'',
+      statusConfirmed:true,used:!c.used,usedAt:c.used?null:Date.now(),usedBy:c.used?'':name||'我',createdAt:c.createdAt||Date.now(),updatedAt:Date.now()};
    await saveCoupon(fresh,c.id);
    notify(c.used?'已恢復為未使用':'✓ 已標記使用並同步');
  }catch(e){fail(errtext(e));}
@@ -269,10 +296,11 @@ function batchImport(files){
     try{
      const photo=await readDataUrl(valid[i]),fp=await fingerprint(photo);
      if(coupons.some(c=>c.fingerprint===fp)){duplicates++;continue;}
-     const data={title:title||`待填品項 ${String(coupons.length+1).padStart(2,'0')}`,expiry,notes:'',image:photo,fingerprint:fp,used:false,usedAt:null,usedBy:'',createdAt:Date.now(),updatedAt:Date.now()};
+     const data={title:title||`待填品項 ${String(coupons.length+1).padStart(2,'0')}`,expiry,notes:'',image:photo,fingerprint:fp,statusConfirmed:false,used:false,usedAt:null,usedBy:'',createdAt:Date.now(),updatedAt:Date.now()};
      await saveCoupon(data);ok++;
     }catch{bad++;}
    }
+   if(ok)selectFilter('unconfirmed');
    notify(`已匯入 ${ok} 張${duplicates?`，略過 ${duplicates} 張重複照片`:''}${bad?`，${bad} 張失敗，請重新匯入`:''}`,6000);
   }finally{loading=false;$('batchAdd').disabled=false;$('addBtn').disabled=false;$('pendingMessage').hidden=true;$('batchFiles').value='';}
  };
@@ -315,7 +343,7 @@ async function init(){
  $('search').oninput=render;
  $('sort').onchange=render;
  document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{
-   filter=b.dataset.filter;document.querySelectorAll('.tab').forEach(t=>(t.classList.toggle('active',t===b),t.setAttribute('aria-selected',String(t===b))));render();
+   selectFilter(b.dataset.filter);
  }));
  document.querySelectorAll('[data-name]').forEach(b=>b.onclick=()=>saveName(b.dataset.name));
  $('customName').onclick=()=>{const entered=prompt('請輸入在家中的稱呼，例如：爸爸、媽媽');if(entered)saveName(entered);};

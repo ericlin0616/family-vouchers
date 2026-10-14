@@ -58,6 +58,35 @@ async function handle(req:Request) {
     }
    }
   }
+  // Each screenshot has an immutable staging slot. Acknowledge only after encryption.
+  if(p[0]==='inbox-items'){
+   if(p.length===1 && method==='GET'){
+    const list=await bucket().list({prefix:'inbox/',limit:200});
+    if(list.truncated)return result({error:'待匯入票券過多，請先整理'},409);
+    const items=await Promise.all(list.objects.map(async o=>{
+     const r=await bucket().get(o.key);
+     return r?{...JSON.parse(await r.text()),id:o.key.slice(6),revision:r.etag}:null;
+    }));
+    return result({items:items.filter(Boolean)});
+   }
+   if(p.length===2 && /^[a-zA-Z0-9-]{1,80}$/.test(p[1])){
+    const key='inbox/'+p[1];
+    if(method==='PUT'){
+     const body=await req.text();
+     if(body.length>1000000)return result({error:'圖片太大'},413);
+     const v=JSON.parse(body);
+     if(v.id!==p[1]||typeof v.title!=='string'||!v.title.trim()||v.title.length>100||typeof v.expiry!=='string'||(v.expiry!==''&&!/^\d{4}-\d{2}-\d{2}$/.test(v.expiry))||typeof v.image!=='string'||!/^data:image\/(jpeg|png|webp);base64,/.test(v.image))return result({error:'格式錯誤'},400);
+     const o=await bucket().put(key,body,{onlyIf:{etagDoesNotMatch:'*'}});
+     return o?result({ok:true},201):result({error:'此待匯入票券已存在'},409);
+    }
+    if(method==='DELETE'){
+     const current=await bucket().head(key);
+     if(!current)return result({ok:true});
+     if(req.headers.get('if-match')!==current.etag)return result({error:'待匯入票券已變更，請重試'},409);
+     await bucket().delete(key);return result({ok:true});
+    }
+   }
+  }
   // User-supplied screenshot staging is protected by the same private boundary.
   // On first unlock the client encrypts this screenshot and removes the staging.
   if(p[0]==='inbox' && p.length===1){
