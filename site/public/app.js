@@ -4,7 +4,9 @@ function foodIcon(title='') {
  const cup='<path d="M17 5h12l-2 24h-8L17 5z" fill="#fffaf0" stroke="#21211f" stroke-width="1.8"/><path d="M15 5h16M23 5V1h6" fill="none" stroke="#21211f" stroke-width="1.8"/><path d="M21 12h6" stroke="#f9b827" stroke-width="4"/>';
  const fries='<path d="M8 16h18l-2 15H11L8 16z" fill="#ec4c32"/><path d="M11 16V7m5 9V3m5 13V6m4 10V9" stroke="#f6c64a" stroke-width="3.4"/>';
  const nuggets='<path d="M5 17c0-6 8-7 11-3s2 10-4 11-7-3-7-8zM17 23c1-6 9-6 12-2s0 10-6 10-7-3-6-8zM19 8c3-5 12-2 12 3s-4 8-9 7-6-6-3-10z" fill="#edb64a" stroke="#c38e2d" stroke-width="1.3"/>';
- return '<svg viewBox="0 0 36 36" aria-hidden="true">'+(/雞塊/.test(title)?nuggets:/薯/.test(title)?fries:/茶|咖啡|飲料/.test(title)?cup:nuggets)+'</svg>';
+ const pizza='<circle cx="18" cy="18" r="14" fill="#e5a64a"/><circle cx="18" cy="18" r="11" fill="#f7d975"/><path d="M18 7v22M8 12l20 12M8 24l20-12" stroke="#b77c35" stroke-width="1.4"/><circle cx="14" cy="12" r="2.5" fill="#db6344"/><circle cx="24" cy="18" r="2.5" fill="#db6344"/><circle cx="14" cy="25" r="2.5" fill="#db6344"/>';
+ const gift='<rect x="3" y="7" width="30" height="22" rx="5" fill="#4e947e"/><path d="M3 14h30" stroke="#f7d975" stroke-width="4"/><path d="M10 22h8M10 25h5" stroke="#fffaf0" stroke-width="2" stroke-linecap="round"/>';
+ return '<svg viewBox="0 0 36 36" aria-hidden="true">'+(/比薩|披薩|必勝客/.test(title)?pizza:/商品卡|禮物卡|超商|7-ELEVEN/i.test(title)?gift:/雞塊/.test(title)?nuggets:/薯/.test(title)?fries:/茶|咖啡|飲料/.test(title)?cup:nuggets)+'</svg>';
 }
 const API_BASE='https://private-voucher-vault.linyuxian517.chatgpt.site/api/vault/';
 const FAMILY_STORAGE='family_vault_access_v1';
@@ -132,7 +134,7 @@ async function importInbox(){
     const exists=()=>coupons.some(c=>c.id===item.id||c.fingerprint===fp);
     if(exists())duplicates++;
     else{
-     const data={title:item.title,expiry:item.expiry||'',image:item.image,fingerprint:fp,statusConfirmed:false,notes:item.expiry?'使用狀態待確認':'使用狀態與效期待確認',used:false,usedAt:null,usedBy:'',createdAt:Date.now(),updatedAt:Date.now()};
+     const data={title:item.title,expiry:item.noExpiry===true?'':item.expiry||'',noExpiry:item.noExpiry===true,image:item.image,fingerprint:fp,statusConfirmed:false,notes:[item.notes||'',item.expiry||item.noExpiry===true?'使用狀態待確認':'使用狀態與效期待確認'].filter(Boolean).join('；'),used:false,usedAt:null,usedBy:'',createdAt:Date.now(),updatedAt:Date.now()};
      try{await saveCoupon(data,null,item.id);added++;}
      catch(e){syncTag='';await refresh();if(!exists())throw e;duplicates++;}
     }
@@ -146,7 +148,7 @@ async function importInbox(){
  }finally{importing=false;}
 }
 function isUnconfirmed(c){return !c.used&&(c.statusConfirmed===false||(c.statusConfirmed===undefined&&/使用狀態待確認/.test(c.notes||'')));}
-function confirmedNotes(c){return (c.notes||'').replace(/^(?:上傳的票券；)?使用狀態待確認$/,'').replace(/^使用狀態與效期待確認$/,'效期待確認');}
+function confirmedNotes(c){return (c.notes||'').replace(/(?:^|；)(?:上傳的票券；)?使用狀態待確認$/,'').replace(/^使用狀態與效期待確認$/,'效期待確認');}
 function selectFilter(value){filter=value;document.querySelectorAll('.tab').forEach(t=>{const active=t.dataset.filter===value;t.classList.toggle('active',active);t.setAttribute('aria-selected',String(active));});render();}
 async function confirmUnused(id){
  if(!validateOnline())return;
@@ -154,7 +156,10 @@ async function confirmUnused(id){
  try{const {id:omitId,revision:omitRevision,...data}=c;await saveCoupon({...data,notes:confirmedNotes(c),statusConfirmed:true,updatedAt:Date.now()},id);notify('已確認為未使用');}catch(e){fail(errtext(e));}
 }
 
-function getExpired(c){return !!(c.expiry && c.expiry < new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()));}
+function merchantName(title=''){return /必勝客|Pizza\s*Hut/i.test(title)?'Pizza Hut':/7[-－]?ELEVEN|7-11|統一超商/i.test(title)?'7-ELEVEN':/麥當勞|麥克雞塊|辣味雞腿|麥香魚/.test(title)?'McDonald’s':'我的票券';}
+function hasNoExpiry(c){return c.noExpiry===true||(c.noExpiry===undefined&&/無使用期限/.test(c.title||''));}
+function expiryLabel(c){return hasNoExpiry(c)?'無使用期限':formatDate(c.expiry);}
+function getExpired(c){return !!(!hasNoExpiry(c)&&c.expiry && c.expiry < new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()));}
 function formatDate(s){return s ? s.replaceAll('-','/'):'效期待確認';}
 function render(){
  const unused=coupons.filter(c=>!c.used&&!isUnconfirmed(c)&&!getExpired(c)).length;
@@ -176,9 +181,10 @@ function render(){
  }
  for(const c of filtered){
   const card=document.createElement('article');card.className='card';
-  card.innerHTML='<div class="card-label"><span>McDonald’s</span><span class="pill"></span></div><div class="card-top"><span class="food-emoji">'+foodIcon(c.title)+'</span><div class="card-head"><strong></strong><div class="meta"></div><div class="used-by"></div></div></div><div class="card-bottom"><button class="btn primary view" type="button">出示票券 ↗</button><button class="btn outline state" type="button"></button></div>';
+  card.innerHTML='<div class="card-label"><span class="merchant"></span><span class="pill"></span></div><div class="card-top"><span class="food-emoji">'+foodIcon(c.title)+'</span><div class="card-head"><strong></strong><div class="meta"></div><div class="used-by"></div></div></div><div class="card-bottom"><button class="btn primary view" type="button">出示票券 ↗</button><button class="btn outline state" type="button"></button></div>';
+  card.querySelector('.merchant').textContent=merchantName(c.title);
   card.querySelector('strong').textContent=c.title||'未命名兌換券';
-  card.querySelector('.meta').textContent=c.expiry?`有效至 ${formatDate(c.expiry)}`:'效期待確認';
+  card.querySelector('.meta').textContent=hasNoExpiry(c)?'無使用期限':c.expiry?`有效至 ${formatDate(c.expiry)}`:'效期待確認';
   const badge=card.querySelector('.pill');const expired=getExpired(c);
   badge.className='pill '+(c.used?'used':isUnconfirmed(c)?'unconfirmed':expired?'expired':'unused');
   badge.textContent=(c.pending?'同步中 · ':'')+(c.used?'已使用':isUnconfirmed(c)?'待確認':expired?'已過期':'未使用');
@@ -232,9 +238,11 @@ function showEdit(id=null){
  const c=id?coupons.find(v=>v.id===id):null;
  openModal(c?'編輯兌換券':'新增兌換券',c?'修改商品品項與到期日':'照片只會以加密形式上傳');
  const div=document.createElement('div');div.className='edit-form';
- div.innerHTML=`<form id="editForm"><label>商品品項 *<input id="editTitle" required maxlength="100" placeholder="例如：辣味雞腿＋小薯" /></label><label>兌換期限<input id="editExpiry" type="date" /></label><label>兌換券照片／QR Code<input id="editFile" type="file" accept="image/*" /></label><p id="imageInfo" class="form-note">照片只會在解鎖後顯示；允許保留原圖。</p><label>備註（選填）<textarea id="editNotes" maxlength="300" placeholder="例如：兌換時不適用自助點餐機"></textarea></label><div class="row-actions"><button class="btn outline" type="button" id="cancelEdit">取消</button><button class="btn primary" type="submit" id="saveEdit">儲存並同步</button></div></form>`;
+ div.innerHTML=`<form id="editForm"><label>商品品項 *<input id="editTitle" required maxlength="100" placeholder="例如：辣味雞腿＋小薯" /></label><label>兌換期限<input id="editExpiry" type="date" /></label><label class="expiry-toggle"><input id="editNoExpiry" type="checkbox" /> 無使用期限</label><label>兌換券照片／QR Code<input id="editFile" type="file" accept="image/*" /></label><p id="imageInfo" class="form-note">照片只會在解鎖後顯示；允許保留原圖。</p><label>備註（選填）<textarea id="editNotes" maxlength="300" placeholder="例如：兌換時不適用自助點餐機"></textarea></label><div class="row-actions"><button class="btn outline" type="button" id="cancelEdit">取消</button><button class="btn primary" type="submit" id="saveEdit">儲存並同步</button></div></form>`;
  $('modalBody').append(div);
  $('editTitle').value=c?.title||'';$('editExpiry').value=c?.expiry||'';$('editNotes').value=c?.notes||'';
+ $('editNoExpiry').checked=!!c&&hasNoExpiry(c);$('editExpiry').disabled=$('editNoExpiry').checked;
+ $('editNoExpiry').onchange=()=>{$('editExpiry').disabled=$('editNoExpiry').checked;};
  $('imageInfo').textContent=c?.image?'目前有保存圖片；若沒有重新選擇，將保留原圖。':'請選擇兌換券截圖，QR Code 不會公開顯示。';
  $('cancelEdit').onclick=closeModal;
  $('editForm').onsubmit=async event=>{
@@ -243,7 +251,7 @@ function showEdit(id=null){
    try{
       const file=$('editFile').files[0];let image=c?.image||'';
       if(file)image=await readDataUrl(file);const fp=image?await fingerprint(image):'';
-      const data={fingerprint:fp,title:$('editTitle').value.trim(),expiry:$('editExpiry').value,notes:$('editNotes').value.trim(),image,
+      const data={fingerprint:fp,title:$('editTitle').value.trim(),expiry:$('editNoExpiry').checked?'':$('editExpiry').value,noExpiry:$('editNoExpiry').checked,notes:$('editNotes').value.trim(),image,
         statusConfirmed:c?(!isUnconfirmed(c)):true,used:!!c?.used,usedAt:c?.usedAt||null,usedBy:c?.usedBy||'',createdAt:c?.createdAt||Date.now(),updatedAt:Date.now()};
       if(!data.title)throw new Error('請輸入品項名稱');
       await saveCoupon(data,c?.id||null);
@@ -256,7 +264,7 @@ function showDetail(id){
  const c=coupons.find(v=>v.id===id);if(!c)return;
  activeId=id;openModal(c.title,'兌換券詳細資料');
  const body=$('modalBody');
- const info=document.createElement('div');info.className='details';info.textContent=`到期日：${formatDate(c.expiry)} · 狀態：${c.used?'已使用':isUnconfirmed(c)?'待確認':getExpired(c)?'已過期':'未使用'}`;body.append(info);
+ const info=document.createElement('div');info.className='details';info.textContent=`兌換期限：${expiryLabel(c)} · 狀態：${c.used?'已使用':isUnconfirmed(c)?'待確認':getExpired(c)?'已過期':'未使用'}`;body.append(info);
  if(c.used){const used=document.createElement('p');used.className='used-by';used.textContent=`最後使用者：${c.usedBy||'我'} ${c.usedAt?new Date(c.usedAt).toLocaleString('zh-TW',{timeZone:'Asia/Taipei',hour12:false}):''}`;body.append(used);}
  if(c.notes){const notes=document.createElement('p');notes.className='details';notes.textContent=`備註：${c.notes}`;body.append(notes);}
  if(c.image){
@@ -289,7 +297,7 @@ async function toggleUsed(id){
  const message=c.used?'確定恢復成「未使用」？這會同步更新你的其他裝置。':`確定「${c.title}」已完成兌換？這是手動紀錄，不會向麥當勞查詢核銷狀態。`;
  if(!confirm(message))return;
  try{
-   const fresh={fingerprint:c.fingerprint||'',title:c.title,expiry:c.expiry||'',notes:confirmedNotes(c),image:c.image||'',
+   const fresh={fingerprint:c.fingerprint||'',title:c.title,expiry:c.expiry||'',noExpiry:hasNoExpiry(c),notes:confirmedNotes(c),image:c.image||'',
       statusConfirmed:true,used:!c.used,usedAt:c.used?null:Date.now(),usedBy:c.used?'':name||'我',createdAt:c.createdAt||Date.now(),updatedAt:Date.now()};
    await saveCoupon(fresh,c.id);
    notify(c.used?'已恢復為未使用':'✓ 已標記使用並同步');

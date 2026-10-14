@@ -29,3 +29,5 @@ html{scroll-padding-top:100px}body{min-height:100svh}button,a,input,select,texta
 @media(max-height:500px) and (orientation:landscape){.header{padding-top:var(--safe-top)}.header-inner{min-height:52px}.hero{display:none}.auth-page{padding:12px max(20px,env(safe-area-inset-left))}.auth-panel{max-width:540px}.auth-panel .wallet-art{display:none}.auth-heading h1{font-size:25px}.modal-layer{padding:0 env(safe-area-inset-right) 0 env(safe-area-inset-left)}.dialog{max-height:var(--visible-height,100dvh)}}
 
 .activation h2{font-size:21px;letter-spacing:-.5px;margin:16px 0 8px}.activation p{font-size:14px;line-height:1.9;color:#747f67}.activation input{font-size:16px;width:100%;padding:14px;border-radius:12px;border:1px solid var(--line);background:#f9faf6}.activation .wide{margin-bottom:10px}
+
+.edit-form .expiry-toggle{display:flex;align-items:center;gap:10px}.edit-form .expiry-toggle input{width:20px;height:20px;margin:0;flex-shrink:0;accent-color:#416954}
