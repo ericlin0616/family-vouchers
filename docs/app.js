@@ -10,17 +10,80 @@ function foodIcon(title='') {
 }
 const API_BASE='https://private-voucher-vault.linyuxian517.chatgpt.site/api/vault/';
 const FAMILY_STORAGE='family_vault_access_v1';
-let familyAccessKey='';
+const DEVICE_STORAGE='family_vault_unlock_v1';
+let familyAccessKey='',rememberedUnlock=null;
+const validFamilyKey=value=>typeof value==='string'&&/^[A-Za-z0-9_-]{43}$/.test(value);
 function readFamilyLink(value){
  const text=String(value||'').trim();
- if(/^[A-Za-z0-9_-]{43}$/.test(text))return text;
- try{const u=new URL(text);if(u.origin!=='https://ericlin0616.github.io'&&u.origin!=='https://private-voucher-vault.linyuxian517.chatgpt.site')return '';return new URLSearchParams(u.hash.slice(1)).get('family')||'';}catch{return '';}
+ if(validFamilyKey(text))return text;
+ try{const u=new URL(text);if(u.origin!=='https://ericlin0616.github.io'&&u.origin!=='https://private-voucher-vault.linyuxian517.chatgpt.site')return '';const key=new URLSearchParams(u.hash.slice(1)).get('family');return validFamilyKey(key)?key:'';}catch{return '';}
+}
+function validDeviceBackup(v){return !!(v&&v.version===1&&v.type==='family-voucher-device'&&typeof v.salt==='string'&&v.salt.length>=16&&v.salt.length<=128&&typeof v.payload==='string'&&v.payload.length<2048);}
+function parseDeviceBackup(text){try{const v=JSON.parse(text);return validDeviceBackup(v)?v:null;}catch{return null;}}
+function deviceStore(action,key,value){
+ return new Promise(resolve=>{
+  if(typeof indexedDB==='undefined'){resolve(null);return;}
+  let db,done=false;const finish=v=>{if(done)return;done=true;clearTimeout(timer);db?.close();resolve(v);};
+  const timer=setTimeout(()=>finish(null),1500);
+  try{const open=indexedDB.open('family_vault_device_v1',1);
+   open.onupgradeneeded=()=>{if(!open.result.objectStoreNames.contains('device'))open.result.createObjectStore('device');};
+   open.onerror=()=>finish(null);open.onblocked=()=>finish(null);
+   open.onsuccess=()=>{db=open.result;if(done){db.close();return;}
+    try{const tx=db.transaction('device',action==='get'?'readonly':'readwrite'),store=tx.objectStore('device');let found=null;
+     const req=action==='get'?store.get(key):action==='delete'?store.delete(key):store.put(value,key);
+     req.onsuccess=()=>{found=action==='get'?req.result:true;};tx.oncomplete=()=>finish(found);tx.onerror=()=>finish(null);tx.onabort=()=>finish(null);
+    }catch{finish(null);}
+   };
+  }catch{finish(null);}
+ });
+}
+function retainOpeningLink(){
+ if(!validFamilyKey(familyAccessKey)||typeof location==='undefined'||typeof history==='undefined')return;
+ // URL fragments stay on the device, and preserve activation in a saved bookmark.
+ try{history.replaceState(null,'',location.pathname+location.search+'#family='+familyAccessKey);}catch{}
 }
 function loadFamilyAccess(){
- const offered=readFamilyLink(location.href);
- try{familyAccessKey=offered||localStorage.getItem(FAMILY_STORAGE)||'';if(offered)localStorage.setItem(FAMILY_STORAGE,offered);}catch{familyAccessKey=offered;}
- if(!/^[A-Za-z0-9_-]{43}$/.test(familyAccessKey))familyAccessKey='';
- if(offered)history.replaceState(null,'',location.pathname+location.search);
+ const offered=readFamilyLink(location.href);let saved='';
+ try{saved=localStorage.getItem(FAMILY_STORAGE)||'';}catch{}
+ familyAccessKey=offered||(validFamilyKey(saved)?saved:'');
+ try{const cookie=(document.cookie||'').split('; ').find(v=>v.startsWith(DEVICE_STORAGE+'='));rememberedUnlock=cookie?parseDeviceBackup(decodeURIComponent(cookie.slice(DEVICE_STORAGE.length+1))):null;}catch{rememberedUnlock=null;}
+ if(!rememberedUnlock)try{rememberedUnlock=parseDeviceBackup(localStorage.getItem(DEVICE_STORAGE));}catch{}
+ if(familyAccessKey){try{localStorage.setItem(FAMILY_STORAGE,familyAccessKey);}catch{}retainOpeningLink();}
+}
+async function restoreRememberedDevice(){
+ const [key,backup]=await Promise.all([deviceStore('get','access'),deviceStore('get','unlock')]);
+ if(!familyAccessKey&&validFamilyKey(key))familyAccessKey=key;
+ if(!rememberedUnlock&&validDeviceBackup(backup))rememberedUnlock=backup;
+ if(familyAccessKey){try{localStorage.setItem(FAMILY_STORAGE,familyAccessKey);}catch{}retainOpeningLink();}
+}
+async function rememberDevice(){
+ if(!validFamilyKey(familyAccessKey)||!vaultKey||!profile?.salt)return;
+ const generation=syncGeneration,key=familyAccessKey;
+ const backup={version:1,type:'family-voucher-device',salt:profile.salt,payload:await encryptObject({familyKey:key})};
+ if(generation!==syncGeneration||familyAccessKey!==key||!user)return;
+ rememberedUnlock=backup;let saved=false;
+ try{localStorage.setItem(FAMILY_STORAGE,key);localStorage.setItem(DEVICE_STORAGE,JSON.stringify(backup));saved=localStorage.getItem(FAMILY_STORAGE)===key;}catch{}
+ // Only the PIN-encrypted access key is placed in the cookie; never the PIN or raw key.
+ try{document.cookie=DEVICE_STORAGE+'='+encodeURIComponent(JSON.stringify(backup))+'; Max-Age=31536000; Path='+new URL('.',location.href).pathname+'; Secure; SameSite=Strict';saved=saved||(document.cookie||'').split('; ').includes(DEVICE_STORAGE+'='+encodeURIComponent(JSON.stringify(backup)));}catch{}
+ retainOpeningLink();const stored=await Promise.all([deviceStore('put','access',key),deviceStore('put','unlock',backup)]);saved=saved||stored.some(Boolean);
+ if(!saved)notify('瀏覽器無法保存裝置記憶；請在設定儲存裝置恢復備份',8000);
+ try{navigator.storage?.persist?.().catch(()=>{});}catch{}
+}
+async function forgetRememberedDevice(){
+ familyAccessKey='';rememberedUnlock=null;
+ try{localStorage.removeItem(FAMILY_STORAGE);localStorage.removeItem(DEVICE_STORAGE);}catch{}
+ try{document.cookie=DEVICE_STORAGE+'=; Max-Age=0; Path='+new URL('.',location.href).pathname+'; Secure; SameSite=Strict';history.replaceState(null,'',location.pathname+location.search);}catch{}
+ await Promise.all([deviceStore('delete','access'),deviceStore('delete','unlock')]);await logout();
+}
+async function exportDeviceBackup(){
+ if(!rememberedUnlock){notify('請先輸入 PIN 打開票券，再儲存裝置備份');return;}
+ const url=URL.createObjectURL(new Blob([JSON.stringify(rememberedUnlock)],{type:'application/json'}));
+ const a=document.createElement('a');a.href=url;a.download='family-voucher-device.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);notify('已儲存裝置備份；下次可用這個檔案和 PIN 恢復');
+}
+async function importDeviceBackup(file){
+ if(!file)return;if(file.size>4096){showAuthErr('請選擇正確的裝置備份檔');return;}
+ const backup=parseDeviceBackup(await file.text());if(!backup){showAuthErr('這不是有效的裝置備份檔');return;}
+ rememberedUnlock=backup;familyAccessKey='';$('authError').hidden=true;await configureAuth();notify('輸入原本的 PIN，即可恢復這台裝置');
 }
 function familyLink(){return new URL('.',location.href).href+'#family='+familyAccessKey;}
 const $ = id => document.getElementById(id);
@@ -44,8 +107,8 @@ async function api(path,method='GET',body=null,extra={}) {
  return v;
 }
 async function configureAuth(){
- if(!familyAccessKey){$('activation').hidden=false;$('authForm').hidden=true;return;}
- profile=await api('profile');$('activation').hidden=true;$('authForm').hidden=false;mode=profile?'login':'register';
+ if(!familyAccessKey&&!rememberedUnlock){$('activation').hidden=false;$('authForm').hidden=true;return;}
+ profile=familyAccessKey?await api('profile'):{salt:rememberedUnlock.salt,pinLength:6,remembered:true};$('activation').hidden=true;$('authForm').hidden=false;mode=profile?'login':'register';
  $('confirmWrap').hidden=!!profile;
  $('authSubmit').textContent=profile?'打開我的票券 ↗':'設定 PIN，開始收藏 ↗';
  const legacy=profile&&profile.pinLength!==6;
@@ -85,6 +148,12 @@ async function submitAuth(ev){
  if(mode==='register'&&password!==$('confirm').value){showAuthErr('兩次輸入的數字不一致');return;}
  loading=true;$('authSubmit').disabled=true;$('authError').hidden=true;
  try{
+  if(!familyAccessKey&&rememberedUnlock){
+   vaultKey=await getKey(password,rememberedUnlock.salt);
+   const restored=await decryptObject(rememberedUnlock.payload);if(!validFamilyKey(restored.familyKey))throw Error('裝置備份無效');
+   familyAccessKey=restored.familyKey;await configureAuth();
+  }
+  if(profile?.remembered&&familyAccessKey)await configureAuth();
   if(!profile){
    cryptoSalt=bytesToB64(crypto.getRandomValues(new Uint8Array(24)));
    vaultKey=await getKey(password,cryptoSalt);
@@ -94,7 +163,7 @@ async function submitAuth(ev){
    cryptoSalt=profile.salt;vaultKey=await getKey(password,cryptoSalt);
    const check=await decryptObject(profile.check);if(check.ok!=='private-vault-v1')throw Error('保管箱 PIN不正確');
   }
-  user=true;lastActivity=Date.now();
+  user=true;lastActivity=Date.now();await rememberDevice();if(!user)return;
   $('password').value='';$('confirm').value='';$('auth').hidden=true;$('main').hidden=false;$('identityPrompt').hidden=true;
   name='我';await refresh();subscribe();
   await importInbox();
@@ -336,11 +405,11 @@ function batchImport(files){
 function settings(){
  openModal('保管箱設定','家庭專屬 · 加密同步');
  const el=document.createElement('div');
- el.innerHTML='<div class="privacy-tag">🔒 家庭專屬連結＋6 位 PIN 加密</div><p class="details">品項、照片和使用紀錄會先在裝置上加密，再同步至雲端。家人使用專屬連結啟用裝置，再輸入同一個 PIN，即可同步票券。</p><p class="muted">忘記保管箱 PIN將無法解密票券，請保存在你的密碼管理工具。閒置 5 分鐘自動鎖定，切到背景時隱藏兌換碼。</p><p class="muted">使用狀態是手動標記，與麥當勞核銷系統無連動。</p><button type="button" id="installHelpSettings" class="btn primary wide">加入 iPhone 主畫面 ↗</button><button type="button" id="exportBackup" class="btn outline wide">下載加密備份</button><p class="muted">備份需使用原密碼解鎖。</p><label class="muted">還原此保管箱的加密備份<input type="file" id="restoreBackup" accept="application/json,.json"></label><button type="button" id="copyFamilyLink" class="btn outline wide">複製家人啟用連結</button><p class="muted">連結只提供給家人；PIN 請另外告知。</p><button type="button" id="forgetDevice" class="text-btn">移除此裝置的家庭存取權</button>';
+ el.innerHTML='<div class="privacy-tag">🔒 家庭專屬連結＋6 位 PIN 加密</div><p class="details">品項、照片和使用紀錄會先在裝置上加密，再同步至雲端。家人使用專屬連結啟用裝置，再輸入同一個 PIN，即可同步票券。</p><p class="muted">忘記保管箱 PIN將無法解密票券，請保存在你的密碼管理工具。閒置 5 分鐘自動鎖定，切到背景時隱藏兌換碼。</p><p class="muted">使用狀態是手動標記，與麥當勞核銷系統無連動。</p><button type="button" id="installHelpSettings" class="btn primary wide">加入 iPhone 主畫面 ↗</button><button type="button" id="exportBackup" class="btn outline wide">下載加密備份</button><p class="muted">備份需使用原密碼解鎖。</p><label class="muted">還原此保管箱的加密備份<input type="file" id="restoreBackup" accept="application/json,.json"></label><button type="button" id="exportDeviceBackup" class="btn outline wide">儲存裝置恢復備份</button><p class="muted">換手機或瀏覽器忘記啟用時，選擇這個備份並輸入 PIN 即可恢復，不必找回對話。</p><button type="button" id="copyFamilyLink" class="btn outline wide">複製家人啟用連結</button><p class="muted">連結只提供給家人；PIN 請另外告知。</p><button type="button" id="forgetDevice" class="text-btn">移除此裝置的家庭存取權</button>';
  $('modalBody').append(el);
  $('installHelpSettings').onclick=showInstallHelp;
- $('copyFamilyLink').onclick=copyFamilyLink;
- $('forgetDevice').onclick=()=>{if(!confirm('移除後需使用家庭專屬連結重新啟用，確定嗎？'))return;try{localStorage.removeItem(FAMILY_STORAGE);}catch{}familyAccessKey='';logout();};
+ $('copyFamilyLink').onclick=copyFamilyLink;$('exportDeviceBackup').onclick=exportDeviceBackup;
+ $('forgetDevice').onclick=async()=>{if(confirm('移除此裝置的記憶？下次需要裝置備份或專屬連結。'))await forgetRememberedDevice();};
  $('exportBackup').onclick=async()=>{
   try{
    const records=await api('coupons');const blob=new Blob([JSON.stringify({version:1,profile,records:records.items})],{type:'application/json'});
@@ -366,7 +435,7 @@ async function activateDevice(ev){
  ev.preventDefault();const key=readFamilyLink($('familyLinkInput').value);
  if(!/^[A-Za-z0-9_-]{43}$/.test(key)){showAuthErr('請貼上完整的家庭啟用連結');return;}
  const button=$('activateSubmit');button.disabled=true;familyAccessKey=key;
- try{await configureAuth();try{localStorage.setItem(FAMILY_STORAGE,key);}catch{}$('familyLinkInput').value='';$('authError').hidden=true;notify('此裝置已啟用，輸入 6 位 PIN 即可開啟');}
+ try{await configureAuth();try{localStorage.setItem(FAMILY_STORAGE,key);}catch{}retainOpeningLink();await deviceStore('put','access',key);$('familyLinkInput').value='';$('authError').hidden=true;notify('此裝置已啟用，輸入 6 位 PIN 即可開啟');}
  catch(e){familyAccessKey='';showAuthErr(errtext(e));}finally{button.disabled=false;}
 }
 
@@ -375,7 +444,7 @@ function updateInstallUI(){const installed=isStandalone();$('installHelpAuth').h
 function showInstallHelp(){
  openModal(isStandalone()?'主畫面版已啟用':'加入 iPhone 主畫面','我的票券 · 隨手開啟');
  const el=document.createElement('div');el.className='install-guide';
- el.innerHTML=isStandalone()?'<div class="install-app-icon"><img src="./apple-touch-icon.png?v=5" width="64" height="64" alt="我的票券圖示"></div><h4>已經像 App 一樣使用了</h4><p>下次直接點主畫面的「我的票券」。可用右上方的同步按鈕重新載入票券。</p>':'<div class="install-app-icon"><img src="./apple-touch-icon.png?v=5" width="64" height="64" alt="我的票券圖示"><div><strong>我的票券</strong><span>從主畫面，直接打開你的票券夾。</span></div></div><ol class="install-steps"><li><b>用 Safari 打開此網站</b><span>若目前在 ChatGPT、LINE 或其他 App 內，先選「在 Safari 開啟」。</span></li><li><b>點「分享」→「加入主畫面」</b><span>依 Safari 版面，分享按鈕也可能在「⋯」選單裡。</span></li><li><b>開啟「打開為網頁 App」</b><span>名稱保留「我的票券」，再點「加入」。</span></li></ol><p>找不到「加入主畫面」？滑到分享選單底部，點「編輯動作」加入。</p><button type="button" class="btn primary wide" id="copyAppLink">複製網站連結</button>';
+ el.innerHTML=isStandalone()?'<div class="install-app-icon"><img src="./apple-touch-icon.png?v=5" width="64" height="64" alt="我的票券圖示"></div><h4>已經像 App 一樣使用了</h4><p>下次直接點主畫面的「我的票券」。可用右上方的同步按鈕重新載入票券。</p>':'<div class="install-app-icon"><img src="./apple-touch-icon.png?v=5" width="64" height="64" alt="我的票券圖示"><div><strong>我的票券</strong><span>從主畫面，直接打開你的票券夾。</span></div></div><ol class="install-steps"><li><b>用 Safari 打開此網站</b><span>若目前在 ChatGPT、LINE 或其他 App 內，先選「在 Safari 開啟」。</span></li><li><b>先輸入 PIN，打開票券一次</b><span>讓手機保存加密的裝置記憶，再加入主畫面。</span></li><li><b>點「分享」→「加入主畫面」</b><span>依 Safari 版面，分享按鈕也可能在「⋯」選單裡。</span></li><li><b>開啟「打開為網頁 App」</b><span>名稱保留「我的票券」，再點「加入」。</span></li></ol><p>舊版捷徑若反覆要求啟用，請移除舊圖示，再從這個已啟用頁面重新加入一次。</p><button type="button" class="btn primary wide" id="copyAppLink">複製網站連結</button>';
  $('modalBody').append(el);
  if(!isStandalone())$('copyAppLink').onclick=async()=>{try{await navigator.clipboard.writeText(familyAccessKey?familyLink():new URL('.',location.href).href);notify('已複製，請貼到 Safari 開啟');}catch{notify('請用 Safari 開啟目前網站，再從分享選單加入主畫面',6000);}};
 }
@@ -399,7 +468,8 @@ function saveName(v){name=String(v||'').trim().slice(0,25)||'我';localStorage.s
 async function logout(){closeModal();showAuth();await configureAuth().catch(e=>showAuthErr(errtext(e)));}
 async function init(){
  
- loadFamilyAccess();updateInstallUI();setupMobileViewport();
+ loadFamilyAccess();$('authSubmit').disabled=true;$('activateSubmit').disabled=true;await restoreRememberedDevice();$('activateSubmit').disabled=false;updateInstallUI();setupMobileViewport();
+ $('deviceRecoveryFile').onchange=ev=>importDeviceBackup(ev.target.files[0]).catch(e=>showAuthErr(errtext(e)));
  $('activationForm').addEventListener('submit',activateDevice);
  $('installHelpAuth').onclick=showInstallHelp;$('refreshBtn').onclick=manualRefresh;
  $('authForm').addEventListener('submit',submitAuth);

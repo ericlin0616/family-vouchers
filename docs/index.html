@@ -3,8 +3,8 @@
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f6f6f3"><meta name="referrer" content="no-referrer"><meta name="robots" content="noindex,nofollow"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://private-voucher-vault.linyuxian517.chatgpt.site; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="我的票券">
-<link rel="manifest" href="./manifest.webmanifest"><link rel="icon" href="./favicon.svg?v=6" type="image/svg+xml"><link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png?v=6"><meta name="mobile-web-app-capable" content="yes"><meta name="format-detection" content="telephone=no"><link rel="stylesheet" href="./style.css?v=6">
-<title>我的票券 · 私密保管箱</title><script type="module" src="./app.js?v=6"></script></head>
+<link rel="manifest" href="./manifest.webmanifest?v=7"><link rel="icon" href="./favicon.svg?v=7" type="image/svg+xml"><link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png?v=7"><meta name="mobile-web-app-capable" content="yes"><meta name="format-detection" content="telephone=no"><link rel="stylesheet" href="./style.css?v=7">
+<title>我的票券 · 私密保管箱</title><script type="module" src="./app.js?v=7"></script></head>
 <body><div id="notice" class="notice" role="status" hidden></div>
 <section id="auth" class="auth-page">
  <div class="auth-panel">
@@ -12,7 +12,7 @@
   <div class="wallet-art" aria-hidden="true"><div class="art-ticket back"><span>MCDONALD’S</span><i></i><b>留一份好心情。</b></div><div class="art-ticket front"><span>YOUR PRIVATE WALLET</span><b>好吃的，<br>都在這裡。</b><div class="art-bottom">一張券，一頓小確幸 <span>↗</span></div></div></div>
   <div class="auth-heading"><span class="eyebrow">YOUR POCKET, YOUR TICKETS</span><h1>解鎖你的<br>美味收藏。</h1><p class="subtitle">輸入 6 位數字，打開專屬票券夾。</p></div>
   <div id="setupInfo" class="warning" hidden></div>
-  <section id="activation" class="activation" hidden><h2>啟用這台手機</h2><p>第一次使用，請貼上家庭專屬連結。啟用後只需輸入 6 位 PIN，不用登入 ChatGPT。</p><form id="activationForm"><label for="familyLinkInput">家庭啟用連結</label><input id="familyLinkInput" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="貼上家人提供的連結" required><button id="activateSubmit" class="btn primary wide" type="submit">啟用此裝置 ↗</button></form></section>
+  <section id="activation" class="activation" hidden><h2>啟用這台手機</h2><p>這個開啟方式還沒有裝置記憶。可選擇之前儲存的裝置備份恢復，或使用家人提供的專屬連結。</p><form id="activationForm"><label for="familyLinkInput">家庭啟用連結</label><input id="familyLinkInput" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="貼上家人提供的連結" required><button id="activateSubmit" class="btn primary wide" type="submit">啟用此裝置 ↗</button></form><label class="btn outline wide recovery-button">從手機備份恢復<input id="deviceRecoveryFile" type="file" accept="application/json,.json" hidden></label></section>
  <form id="authForm">
    <label for="password">6 位數字 PIN</label><input id="password" class="pin-input" type="password" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="current-password" placeholder="••••••" enterkeyhint="go" autocapitalize="off" spellcheck="false" aria-label="六位數字保管箱密碼" required>
    <div id="confirmWrap" hidden><label for="confirm">再輸入一次</label><input id="confirm" class="pin-input" type="password" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="new-password" placeholder="••••••" enterkeyhint="go" autocapitalize="off" spellcheck="false" aria-label="再次輸入六位數字密碼"></div>

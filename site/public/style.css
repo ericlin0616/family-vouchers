@@ -31,3 +31,5 @@ html{scroll-padding-top:100px}body{min-height:100svh}button,a,input,select,texta
 .activation h2{font-size:21px;letter-spacing:-.5px;margin:16px 0 8px}.activation p{font-size:14px;line-height:1.9;color:#747f67}.activation input{font-size:16px;width:100%;padding:14px;border-radius:12px;border:1px solid var(--line);background:#f9faf6}.activation .wide{margin-bottom:10px}
 
 .edit-form .expiry-toggle{display:flex;align-items:center;gap:10px}.edit-form .expiry-toggle input{width:20px;height:20px;margin:0;flex-shrink:0;accent-color:#416954}
+
+.recovery-button{margin-top:12px;cursor:pointer}.activation .recovery-button{color:#416954}.recovery-button:focus-within{outline:3px solid #c7a624;outline-offset:3px}
